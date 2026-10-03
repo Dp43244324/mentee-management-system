@@ -349,8 +349,111 @@ def student_dashboard():
 @app.route("/student/profile",methods=["POST"])
 @login_required("student")
 def student_profile():
-    f=request.form;urn=get_student_urn();con=db();con.execute("""UPDATE Student SET name=?,address=?,mobile=?,parent_name=?,parent_mobile=?,hobbies=?,ssc_medium=?,hsc_medium=?,ssc_marks=?,hsc_marks=?,awards=?,certifications=? WHERE urn=?""",(f.get("name","").strip(),f.get("address"),f.get("mobile"),f.get("parent_name"),f.get("parent_mobile"),f.get("hobbies"),f.get("ssc_medium"),f.get("hsc_medium"),f.get("ssc_marks") or None,f.get("hsc_marks") or None,f.get("awards"),f.get("certifications"),urn));con.commit();con.close();flash("Profile updated. Academic batch/division are controlled by the college semester assignment.","success");return redirect(url_for("student_dashboard"))
+    f=request.form
+    urn=get_student_urn()
 
+    term_id=f.get("term_id")
+    batch=f.get("batch","").strip()
+    division=f.get("division","").strip()
+
+    if not term_id or not batch or not division:
+        flash("Semester, division and batch are required.","danger")
+        return redirect(url_for("student_dashboard"))
+
+    term=term_by_id(term_id)
+    if not term:
+        flash("Invalid academic semester.","danger")
+        return redirect(url_for("student_dashboard"))
+
+    con=db()
+
+    try:
+        # Update personal profile
+        con.execute("""
+            UPDATE Student SET
+                name=?,
+                address=?,
+                mobile=?,
+                parent_name=?,
+                parent_mobile=?,
+                hobbies=?,
+                ssc_medium=?,
+                hsc_medium=?,
+                ssc_marks=?,
+                hsc_marks=?,
+                awards=?,
+                certifications=?
+            WHERE urn=?
+        """,(
+            f.get("name","").strip(),
+            f.get("address"),
+            f.get("mobile"),
+            f.get("parent_name"),
+            f.get("parent_mobile"),
+            f.get("hobbies"),
+            f.get("ssc_medium"),
+            f.get("hsc_medium"),
+            f.get("ssc_marks") or None,
+            f.get("hsc_marks") or None,
+            f.get("awards"),
+            f.get("certifications"),
+            urn
+        ))
+
+        # Find permanent student ID
+        sid=con.execute(
+            "SELECT student_id FROM Student WHERE urn=?",
+            (urn,)
+        ).fetchone()["student_id"]
+
+        # Update or create semester assignment
+        existing=con.execute("""
+            SELECT assignment_id
+            FROM StudentAcademicAssignment
+            WHERE student_id=? AND term_id=?
+        """,(sid,int(term_id))).fetchone()
+
+        if existing:
+            con.execute("""
+                UPDATE StudentAcademicAssignment
+                SET class_name=?,
+                    division=?,
+                    batch=?,
+                    roll_no=?
+                WHERE assignment_id=?
+            """,(
+                f.get("class_name"),
+                division,
+                batch,
+                f.get("roll_no"),
+                existing["assignment_id"]
+            ))
+        else:
+            con.execute("""
+                INSERT INTO StudentAcademicAssignment
+                (student_id,term_id,class_name,division,batch,roll_no)
+                VALUES(?,?,?,?,?,?)
+            """,(
+                sid,
+                int(term_id),
+                f.get("class_name"),
+                division,
+                batch,
+                f.get("roll_no")
+            ))
+
+        con.commit()
+
+        flash("Profile and academic details updated successfully.","success")
+
+    except Exception:
+        con.rollback()
+        flash("Could not save your profile details.","danger")
+
+    finally:
+        con.close()
+
+    return redirect(url_for("student_dashboard"))
 @app.route("/student/academic-assignment",methods=["POST"])
 @login_required("student")
 def student_academic_assignment():
