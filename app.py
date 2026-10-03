@@ -228,7 +228,7 @@ def attendance_df(urn=None, term_id=None, batch=None):
 
 def marks_df(urn=None, term_id=None, batch=None):
     con=db(); q="""SELECT m.urn,s.name,sa.batch,sa.division,t.academic_year,t.semester,m.subject,m.ise,m.mse,m.ese,
-         ROUND((m.ise+m.mse+m.ese),2) total FROM SemesterMarks m JOIN Student s ON s.urn=m.urn
+         ROUND(CAST((m.ise+m.mse+m.ese) AS NUMERIC),2) total FROM SemesterMarks m JOIN Student s ON s.urn=m.urn
          JOIN AcademicTerm t ON t.term_id=m.term_id LEFT JOIN StudentAcademicAssignment sa ON sa.student_id=s.student_id AND sa.term_id=m.term_id"""
     p=[];w=[]
     if urn:w.append("m.urn=?");p.append(urn)
