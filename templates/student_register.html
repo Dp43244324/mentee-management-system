@@ -8,7 +8,9 @@
 <select class="form-select" name="term_id" required>
 <option value="" disabled selected>Select your semester</option>
 {% for t in terms|sort(attribute='semester') %}
-<option value="{{t.term_id}}">{{t.academic_year}} · Semester {{t.semester}}{% if t.is_current %} (current){% endif %}</option>
+<option value="{{t.term_id}}">
+    {{t.semester}}
+</option>
 {% endfor %}
 </select>
 <div class="form-text">Select the semester you are actually studying in at the time of registration. For example, a student already in Semester 5 should select Semester 5.</div>
