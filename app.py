@@ -349,29 +349,30 @@ def student_dashboard():
 @app.route("/student/profile",methods=["POST"])
 @login_required("student")
 def student_profile():
-    f=request.form
-    urn=get_student_urn()
+    f = request.form
+    urn = get_student_urn()
 
-    term_id=f.get("term_id")
-    batch=f.get("batch","").strip()
-    division=f.get("division","").strip()
+    term_id = f.get("term_id")
+    batch = f.get("batch", "").strip()
+    division = f.get("division", "").strip()
 
     if not term_id or not batch or not division:
-        flash("Semester, division and batch are required.","danger")
+        flash("Semester, batch and division are required.", "danger")
         return redirect(url_for("student_dashboard"))
 
-    term=term_by_id(term_id)
-    if not term:
-        flash("Invalid academic semester.","danger")
+    term = term_by_id(term_id)
+
+    if not term or term["semester"] not in [4, 5]:
+        flash("Please select semester 4 or 5.", "danger")
         return redirect(url_for("student_dashboard"))
 
-    con=db()
+    con = db()
 
     try:
-        # Update personal profile
+        # Save personal profile
         con.execute("""
-            UPDATE Student SET
-                name=?,
+            UPDATE Student
+            SET name=?,
                 address=?,
                 mobile=?,
                 parent_name=?,
@@ -384,8 +385,8 @@ def student_profile():
                 awards=?,
                 certifications=?
             WHERE urn=?
-        """,(
-            f.get("name","").strip(),
+        """, (
+            f.get("name", "").strip(),
             f.get("address"),
             f.get("mobile"),
             f.get("parent_name"),
@@ -400,20 +401,21 @@ def student_profile():
             urn
         ))
 
-        # Find permanent student ID
-        sid=con.execute(
+        # Get permanent student ID
+        sid = con.execute(
             "SELECT student_id FROM Student WHERE urn=?",
             (urn,)
         ).fetchone()["student_id"]
 
-        # Update or create semester assignment
-        existing=con.execute("""
+        # Check whether this semester assignment already exists
+        existing = con.execute("""
             SELECT assignment_id
             FROM StudentAcademicAssignment
             WHERE student_id=? AND term_id=?
-        """,(sid,int(term_id))).fetchone()
+        """, (sid, int(term_id))).fetchone()
 
         if existing:
+            # Update existing semester details
             con.execute("""
                 UPDATE StudentAcademicAssignment
                 SET class_name=?,
@@ -421,7 +423,7 @@ def student_profile():
                     batch=?,
                     roll_no=?
                 WHERE assignment_id=?
-            """,(
+            """, (
                 f.get("class_name"),
                 division,
                 batch,
@@ -429,11 +431,12 @@ def student_profile():
                 existing["assignment_id"]
             ))
         else:
+            # Create assignment for this semester
             con.execute("""
                 INSERT INTO StudentAcademicAssignment
-                (student_id,term_id,class_name,division,batch,roll_no)
-                VALUES(?,?,?,?,?,?)
-            """,(
+                (student_id, term_id, class_name, division, batch, roll_no)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (
                 sid,
                 int(term_id),
                 f.get("class_name"),
@@ -444,11 +447,11 @@ def student_profile():
 
         con.commit()
 
-        flash("Profile and academic details updated successfully.","success")
+        flash("Mentee profile updated successfully.", "success")
 
     except Exception:
         con.rollback()
-        flash("Could not save your profile details.","danger")
+        flash("Could not save your profile details.", "danger")
 
     finally:
         con.close()
