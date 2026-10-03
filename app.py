@@ -802,82 +802,285 @@ def build_individual_pdf(urn, ma):
     mk = marks_with_status(urn=urn, term_id=ma["term_id"])
 
     out = io.BytesIO()
+
     doc = SimpleDocTemplate(
-        out, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30
+        out,
+        pagesize=A4,
+        rightMargin=36,
+        leftMargin=36,
+        topMargin=36,
+        bottomMargin=36
     )
+
     styles = getSampleStyleSheet()
+
+    # -----------------------------
+    # Student data
+    # -----------------------------
     s = student.iloc[0]
+
     story = [
-        Paragraph("Mentee Management System - Individual Report", styles["Title"]),
         Paragraph(
-            f"Academic Year: {ma['academic_year']} | Semester: {ma['semester']} | "
-            f"Batch: {ma['batch']} | Mentor: {ma['mentor_name']}",
-            styles["Normal"],
+            "Mentee Management Report",
+            styles["Title"]
         ),
-        Spacer(1, 12),
-        Paragraph("Student Details", styles["Heading2"]),
+        Spacer(1, 18),
     ]
+
+    # -----------------------------
+    # Student Profile
+    # -----------------------------
     profile_data = [
-        ["URN", s.get("urn", "")],
+        ["Field", "Value"],
+        ["Urn", s.get("urn", "")],
         ["Name", s.get("name", "")],
-        ["Batch", s.get("batch", "")],
-        ["Class", s.get("class_name", "") or ""],
+        ["Batch", s.get("batch", "") or ""],
+        ["Class Name", s.get("class_name", "") or ""],
         ["Division", s.get("division", "") or ""],
         ["Roll No", s.get("roll_no", "") or ""],
+        ["Address", s.get("address", "") or ""],
         ["Mobile", s.get("mobile", "") or ""],
         ["Parent Name", s.get("parent_name", "") or ""],
+        ["Parent Mobile", s.get("parent_mobile", "") or ""],
+        ["Hobbies", s.get("hobbies", "") or ""],
+        ["Ssc Medium", s.get("ssc_medium", "") or ""],
+        ["Hsc Medium", s.get("hsc_medium", "") or ""],
+        ["Ssc Marks", s.get("ssc_marks", "") or ""],
+        ["Hsc Marks", s.get("hsc_marks", "") or ""],
+        ["Awards", s.get("awards", "") or ""],
+        ["Certifications", s.get("certifications", "") or ""],
     ]
-    t = Table(profile_data, colWidths=[100, 400])
+
+    t = Table(
+        profile_data,
+        colWidths=[130, 380],
+        repeatRows=1
+    )
+
     t.setStyle(TableStyle([
-        ("GRID", (0, 0), (-1, -1), .4, colors.grey),
-        ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#eaf2f8")),
-        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, -1), 9),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+        ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTNAME", (0, 1), (0, -1), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 10),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
     ]))
+
     story.append(t)
-    story.append(Spacer(1, 14))
+    story.append(Spacer(1, 22))
 
-    story.append(Paragraph("Attendance", styles["Heading2"]))
+    # -----------------------------
+    # Attendance
+    # -----------------------------
+    story.append(
+        Paragraph("Attendance", styles["Heading2"])
+    )
+    story.append(Spacer(1, 8))
+
     if ad.empty:
-        story.append(Paragraph("No attendance data available.", styles["Normal"]))
+        story.append(
+            Paragraph(
+                "No attendance data available.",
+                styles["Normal"]
+            )
+        )
     else:
-        da = [["Semester", "Total", "Present", "Absent", "Attendance %"]]
-        da += [[r.semester, r.total_lectures, r.present, r.absent, r.percentage] for r in ad.itertuples()]
-        t = Table(da, repeatRows=1)
-        t.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f4e78")),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-            ("GRID", (0, 0), (-1, -1), .3, colors.grey),
-            ("FONTSIZE", (0, 0), (-1, -1), 8),
-        ]))
-        story.append(t)
-    story.append(Spacer(1, 14))
+        da = [
+            ["Sem", "Total", "Present", "Absent", "%"]
+        ]
 
-    story.append(Paragraph("Semester Marks / Backlogs", styles["Heading2"]))
+        da += [
+            [
+                r.semester,
+                r.total_lectures,
+                r.present,
+                r.absent,
+                r.percentage
+            ]
+            for r in ad.itertuples()
+        ]
+
+        t = Table(
+            da,
+            repeatRows=1
+        )
+
+        t.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+            ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ]))
+
+        story.append(t)
+
+        # -----------------------------
+        # Attendance graph
+        # -----------------------------
+        if not ad.empty:
+            fig, ax = plt.subplots(figsize=(7.5, 3.8))
+
+            ax.plot(
+                ad["semester"],
+                ad["percentage"],
+                marker="o"
+            )
+
+            ax.set_title("Attendance by Semester")
+            ax.set_xlabel("Semester")
+            ax.set_ylabel("Attendance %")
+            ax.set_ylim(0, 100)
+            ax.grid(True, alpha=0.3)
+
+            fig.tight_layout()
+
+            chart_buf = io.BytesIO()
+            fig.savefig(
+                chart_buf,
+                format="png",
+                dpi=140,
+                bbox_inches="tight"
+            )
+            plt.close(fig)
+
+            chart_buf.seek(0)
+
+            story.append(Spacer(1, 12))
+            story.append(
+                Image(
+                    chart_buf,
+                    width=500,
+                    height=260
+                )
+            )
+
+    story.append(Spacer(1, 22))
+
+    # -----------------------------
+    # Semester Marks
+    # -----------------------------
+    story.append(
+        Paragraph("Semester Marks", styles["Heading2"])
+    )
+    story.append(Spacer(1, 8))
+
     if mk.empty:
-        story.append(Paragraph("No semester marks available.", styles["Normal"]))
+        story.append(
+            Paragraph(
+                "No semester marks available.",
+                styles["Normal"]
+            )
+        )
     else:
-        dm = [["Semester", "Subject", "ISE", "MSE", "ESE", "Total", "Status"]]
-        dm += [[r.semester, r.subject, r.ise, r.mse, r.ese, r.total, r.status] for r in mk.itertuples()]
-        t = Table(dm, repeatRows=1)
+        dm = [
+            [
+                "Sem",
+                "Subject",
+                "ISE",
+                "MSE",
+                "ESE",
+                "Total",
+                "Status",
+                "Reason"
+            ]
+        ]
+
+        dm += [
+            [
+                r.semester,
+                r.subject,
+                r.ise,
+                r.mse,
+                r.ese,
+                r.total,
+                r.status,
+                getattr(r, "reason", "") or ""
+            ]
+            for r in mk.itertuples()
+        ]
+
+        t = Table(
+            dm,
+            repeatRows=1,
+            colWidths=[
+                35,
+                90,
+                45,
+                45,
+                45,
+                50,
+                55,
+                145
+            ]
+        )
+
         t.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f4e78")),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-            ("GRID", (0, 0), (-1, -1), .3, colors.grey),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+            ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
             ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("ALIGN", (0, 0), (0, -1), "CENTER"),
+            ("ALIGN", (2, 1), (6, -1), "CENTER"),
         ]))
+
         story.append(t)
 
-    story.append(Spacer(1, 14))
-    story.append(Paragraph("Mentor Suggestions", styles["Heading2"]))
-    for sug in get_suggestions(urn):
-        story.append(Paragraph(
-            f"{sug.get('suggestion_date', '')}: {sug.get('suggestion', '')}",
-            styles["Normal"],
-        ))
+    story.append(Spacer(1, 22))
+
+    # -----------------------------
+    # Mentor Suggestions
+    # -----------------------------
+    story.append(
+        Paragraph("Mentor Suggestions", styles["Heading2"])
+    )
+    story.append(Spacer(1, 8))
+
+    suggestions = get_suggestions(urn)
+
+    if not suggestions:
+        story.append(
+            Paragraph(
+                "No mentor suggestions available.",
+                styles["Normal"]
+            )
+        )
+    else:
+        suggestion_data = [
+            ["Semester", "Date", "Suggestion"]
+        ]
+
+        for sug in suggestions:
+            suggestion_data.append([
+                sug.get("semester", ""),
+                sug.get("suggestion_date", ""),
+                sug.get("suggestion", "")
+            ])
+
+        t = Table(
+            suggestion_data,
+            colWidths=[70, 100, 330],
+            repeatRows=1
+        )
+
+        t.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+            ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ]))
+
+        story.append(t)
 
     doc.build(story)
+
     out.seek(0)
     return out
 
