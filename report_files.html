@@ -1,0 +1,19 @@
+{% extends "base.html" %}{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div><h2>Reports Folder</h2><p class="small-muted">Generated reports for your mentor account.</p></div>
+  <a class="btn btn-outline-secondary" href="{{url_for('mentor_reports')}}">Back to Reports</a>
+</div>
+<div class="card p-4">
+  {% if files %}
+  <div class="list-group">
+    {% for f in files %}
+      <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" href="{{url_for('download_report_file', filename=f)}}">
+        <span>{{f}}</span><span class="badge bg-primary">Download</span>
+      </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="alert alert-info mb-0">No reports have been generated yet. Generate an Individual or Batch PDF/Excel report first.</div>
+  {% endif %}
+</div>
+{% endblock %}

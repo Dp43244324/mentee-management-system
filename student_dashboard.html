@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="student-dashboard">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h2 class="mb-0">Student Dashboard - {{s.name}}</h2>
+      <div class="student-batch-label">Batch: {{assignment.batch if assignment else 'Not assigned'}}</div>
+    </div>
+  </div>
+
+  <ul class="nav nav-tabs dashboard-tabs" id="studentTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile-pane" type="button" role="tab">Mentee Profile</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="attendance-tab" data-bs-toggle="tab" data-bs-target="#attendance-pane" type="button" role="tab">Attendance</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="marks-tab" data-bs-toggle="tab" data-bs-target="#marks-pane" type="button" role="tab">Semester Marks</button>
+    </li>
+  </ul>
+
+  <div class="tab-content dashboard-content" id="studentTabsContent">
+    <!-- PROFILE -->
+    <div class="tab-pane fade show active" id="profile-pane" role="tabpanel" tabindex="0">
+      <form method="post" action="{{url_for('student_profile')}}" class="profile-panel">
+        <div class="profile-grid">
+          <div class="field"><label>URN</label><input class="form-control readonly-field" value="{{s.urn}}" readonly></div>
+          <div class="field"><label>Name</label><input class="form-control" name="name" value="{{s.name or ''}}"></div>
+          <div class="field"><label>Batch</label><input class="form-control readonly-field" value="{{assignment.batch if assignment else ''}}" readonly></div>
+          <div class="field"><label>Class</label><input class="form-control readonly-field" value="{{assignment.class_name if assignment else ''}}" readonly></div>
+
+          <div class="field"><label>Division</label><input class="form-control readonly-field" value="{{assignment.division if assignment else ''}}" readonly></div>
+          <div class="field"><label>Roll No</label><input class="form-control readonly-field" value="{{assignment.roll_no if assignment else ''}}" readonly></div>
+          <div class="field"><label>Address</label><input class="form-control" name="address" value="{{s.address or ''}}"></div>
+          <div class="field"><label>Mobile</label><input class="form-control" name="mobile" value="{{s.mobile or ''}}"></div>
+
+          <div class="field"><label>Parent Name</label><input class="form-control" name="parent_name" value="{{s.parent_name or ''}}"></div>
+          <div class="field"><label>Parent Mobile</label><input class="form-control" name="parent_mobile" value="{{s.parent_mobile or ''}}"></div>
+          <div class="field"><label>Hobbies</label><input class="form-control" name="hobbies" value="{{s.hobbies or ''}}"></div>
+          <div class="field"><label>SSC Medium</label><input class="form-control" name="ssc_medium" value="{{s.ssc_medium or ''}}"></div>
+
+          <div class="field"><label>HSC Medium</label><input class="form-control" name="hsc_medium" value="{{s.hsc_medium or ''}}"></div>
+          <div class="field"><label>SSC Marks</label><input class="form-control" name="ssc_marks" value="{{s.ssc_marks if s.ssc_marks is not none else ''}}"></div>
+          <div class="field"><label>HSC Marks</label><input class="form-control" name="hsc_marks" value="{{s.hsc_marks if s.hsc_marks is not none else ''}}"></div>
+          <div class="field"><label>Awards</label><input class="form-control" name="awards" value="{{s.awards or ''}}"></div>
+
+          <div class="field"><label>Certifications</label><input class="form-control" name="certifications" value="{{s.certifications or ''}}"></div>
+        </div>
+        <div class="profile-actions"><button type="submit" class="btn btn-primary">Save My Profile</button></div>
+      </form>
+    </div>
+
+    <!-- ATTENDANCE -->
+    <div class="tab-pane fade" id="attendance-pane" role="tabpanel" tabindex="0">
+      <div class="section-panel">
+        <form method="post" action="{{url_for('student_attendance')}}" class="inline-entry-form">
+          <div class="entry-field"><label>Semester</label><input class="form-control" name="semester" placeholder="5" required></div>
+          <div class="entry-field"><label>Total Lectures</label><input class="form-control" name="total" placeholder="120" required></div>
+          <div class="entry-field"><label>Present</label><input class="form-control" name="present" placeholder="95" required></div>
+          <div class="entry-action"><button class="btn btn-primary">Save / Update</button></div>
+        </form>
+
+        <div class="table-responsive dashboard-table-wrap">
+          <table class="table dashboard-table mb-0">
+            <thead><tr><th>Semester</th><th>Total</th><th>Present</th><th>Absent</th><th>Percentage</th></tr></thead>
+            <tbody>
+            {% for r in attendance %}
+              <tr><td>{{r.semester}}</td><td>{{r.total_lectures}}</td><td>{{r.present}}</td><td>{{r.absent}}</td><td>{{r.percentage}}</td></tr>
+            {% else %}
+              <tr><td colspan="5" class="empty-row">No attendance records yet.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SEMESTER MARKS -->
+    <div class="tab-pane fade" id="marks-pane" role="tabpanel" tabindex="0">
+      <div class="section-panel">
+        <form method="post" action="{{url_for('student_marks')}}" class="inline-entry-form marks-entry-form">
+          <div class="entry-field"><label>Semester</label><input class="form-control" name="semester" placeholder="5" required></div>
+          <div class="entry-field subject-entry"><label>Subject</label><input class="form-control" name="subject" placeholder="ADS" required></div>
+          <div class="entry-field"><label>ISE (40)</label><input class="form-control" name="ise" placeholder="14" required></div>
+          <div class="entry-field"><label>MSE</label><input class="form-control" name="mse" placeholder="12" required></div>
+          <div class="entry-field"><label>ESE</label><input class="form-control" name="ese" placeholder="8" required></div>
+          <div class="entry-action"><button class="btn btn-primary">Save / Update</button></div>
+        </form>
+
+        <div class="table-responsive dashboard-table-wrap">
+          <table class="table dashboard-table mb-0">
+            <thead><tr><th>Semester</th><th>Subject</th><th>ISE</th><th>MSE</th><th>ESE</th><th>Total</th><th>Status</th></tr></thead>
+            <tbody>
+            {% for r in marks %}
+              <tr>
+                <td>{{r.semester}}</td><td>{{r.subject}}</td><td>{{r.ise}}</td><td>{{r.mse}}</td><td>{{r.ese}}</td><td>{{r.total}}</td>
+                <td>{{r.status}}</td>
+              </tr>
+            {% else %}
+              <tr><td colspan="7" class="empty-row">No semester marks yet.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.student-dashboard{font-family:Arial,Helvetica,sans-serif;color:#111}
+.student-dashboard h2{font-size:2rem;font-weight:700;margin-bottom:0}
+.student-batch-label{font-size:1.05rem;margin-top:.15rem;color:#333}
+.dashboard-tabs{margin-top:1rem;border-bottom:1px solid #ddd}
+.dashboard-tabs .nav-link{color:#111;border-radius:0;padding:.45rem .8rem;font-size:1rem}
+.dashboard-tabs .nav-link.active{font-weight:600;background:#fff;color:#111;border-color:#ddd #ddd #fff}
+.dashboard-content{border:1px solid #ddd;border-top:0;min-height:620px;background:#fff}
+.profile-panel{padding:1.25rem 1.5rem 1.5rem}
+.profile-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));column-gap:2rem;row-gap:.65rem;max-width:1350px}
+.field label,.entry-field label{display:block;margin-bottom:.22rem;font-size:.92rem;font-weight:500}
+.field .form-control,.entry-field .form-control{height:36px;border-radius:2px;border:1px solid #bbb;box-shadow:none}
+.readonly-field{background:#f1f1f1}
+.profile-actions{margin-top:1.4rem;text-align:center}
+.profile-actions .btn{min-width:125px}
+.section-panel{padding:1rem 1.2rem}
+.inline-entry-form{display:flex;align-items:end;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}
+.entry-field{width:135px}.entry-field.subject-entry{width:160px}.entry-action{padding-bottom:0}
+.dashboard-table-wrap{border:1px solid #ddd;max-height:560px;overflow:auto}
+.dashboard-table{font-size:.96rem;min-width:900px}
+.dashboard-table thead th{font-weight:500;background:#fafafa;border-bottom:1px solid #ddd;text-align:center;white-space:nowrap}
+.dashboard-table td{text-align:center;vertical-align:middle;border-bottom:1px solid #eee}
+.empty-row{padding:1.5rem!important;color:#777}
+@media(max-width:1000px){.profile-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.profile-grid{grid-template-columns:1fr}.dashboard-content{min-height:auto}.inline-entry-form{display:grid;grid-template-columns:1fr 1fr}.entry-field,.entry-field.subject-entry{width:auto}.entry-action{grid-column:1/-1}}
+</style>
+{% endblock %}

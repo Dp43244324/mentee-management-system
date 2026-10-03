@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: mentee-management-system
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python run_server.py
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: COOKIE_SECURE
+        value: "1"
+      - key: CURRENT_ACADEMIC_YEAR
+        value: "2026-27"
+      - key: CURRENT_SEMESTER
+        value: "1"
