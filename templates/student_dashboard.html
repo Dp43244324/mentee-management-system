@@ -21,7 +21,7 @@
   </ul>
 
   <div class="tab-content dashboard-content" id="studentTabsContent">
-  <!-- PROFILE -->
+<!-- PROFILE -->
 <div class="tab-pane fade show active" id="profile-pane" role="tabpanel" tabindex="0">
 
   <form method="post" action="{{url_for('student_profile')}}" class="profile-panel">
@@ -30,7 +30,7 @@
 
     <div class="profile-grid">
 
-      <!-- ROW 1 -->
+      <!-- ROW 1: URN | Name | Batch | Class -->
 
       <div class="field">
         <label>URN</label>
@@ -62,7 +62,7 @@
       </div>
 
 
-      <!-- ROW 2 -->
+      <!-- ROW 2: Division | Roll No | Address | Mobile -->
 
       <div class="field">
         <label>Division</label>
@@ -94,7 +94,7 @@
       </div>
 
 
-      <!-- ROW 3 -->
+      <!-- ROW 3: Parent Name | Parent Mobile | Hobbies | SSC Medium -->
 
       <div class="field">
         <label>Parent Name</label>
@@ -125,7 +125,7 @@
       </div>
 
 
-      <!-- ROW 4 -->
+      <!-- ROW 4: HSC Medium | SSC Marks | HSC Marks | Awards -->
 
       <div class="field">
         <label>HSC Medium</label>
@@ -156,7 +156,7 @@
       </div>
 
 
-      <!-- ROW 5 -->
+      <!-- ROW 5: Certifications | Semester -->
 
       <div class="field">
         <label>Certifications</label>
@@ -168,16 +168,20 @@
       <div class="field">
         <label>Semester</label>
         <select name="term_id" class="form-control" required>
+
           {% for t in terms %}
             {% if t.semester in [4, 5] %}
+
               <option value="{{t.term_id}}"
                 {% if assignment and assignment.term_id == t.term_id %}
                   selected
                 {% endif %}>
                 {{t.semester}}
               </option>
+
             {% endif %}
           {% endfor %}
+
         </select>
       </div>
 
@@ -190,102 +194,6 @@
     </div>
 
   </form>
-
-</div>
-
-
-  <!-- ACADEMIC ASSIGNMENT -->
-  <div class="academic-assignment-panel">
-
-    <h4 class="profile-section-title">Academic Assignment</h4>
-
-    <p class="academic-help">
-      Update your academic details for each semester. Your URN and student
-      account remain permanent.
-    </p>
-
-    <form method="post"
-          action="{{url_for('student_academic_assignment')}}"
-          class="academic-assignment-form">
-
-      <div class="assignment-grid">
-
-        <div class="field">
-          <label>Semester</label>
-
-          <select name="term_id"
-                  class="form-control"
-                  required>
-
-            {% for t in terms %}
-              <option value="{{t.term_id}}"
-                {% if assignment and assignment.term_id == t.term_id %}
-                  selected
-                {% endif %}>
-                Semester {{t.semester}} - {{t.academic_year}}
-              </option>
-            {% endfor %}
-
-          </select>
-        </div>
-
-
-        <div class="field">
-          <label>Batch</label>
-
-          <input type="text"
-                 name="batch"
-                 class="form-control"
-                 value="{{assignment.batch if assignment else ''}}"
-                 placeholder="Example: A"
-                 required>
-        </div>
-
-
-        <div class="field">
-          <label>Division</label>
-
-          <input type="text"
-                 name="division"
-                 class="form-control"
-                 value="{{assignment.division if assignment else ''}}"
-                 placeholder="Example: A"
-                 required>
-        </div>
-
-
-        <div class="field">
-          <label>Class</label>
-
-          <input type="text"
-                 name="class_name"
-                 class="form-control"
-                 value="{{assignment.class_name if assignment else ''}}"
-                 placeholder="Example: SY">
-        </div>
-
-
-        <div class="field">
-          <label>Roll No</label>
-
-          <input type="text"
-                 name="roll_no"
-                 class="form-control"
-                 value="{{assignment.roll_no if assignment else ''}}"
-                 placeholder="Example: 25">
-        </div>
-
-      </div>
-
-      <div class="profile-actions">
-        <button type="submit" class="btn btn-success">
-          Save Academic Assignment
-        </button>
-      </div>
-
-    </form>
-
-  </div>
 
 </div>
 
