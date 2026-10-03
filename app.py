@@ -1227,71 +1227,269 @@ def export_pdf():
     mk = marks_with_status(term_id=ma["term_id"], batch=ma["batch"])
 
     out = io.BytesIO()
+
     doc = SimpleDocTemplate(
-        out, pagesize=landscape(A4), rightMargin=24, leftMargin=24, topMargin=24, bottomMargin=24
+        out,
+        pagesize=landscape(A4),
+        rightMargin=24,
+        leftMargin=24,
+        topMargin=24,
+        bottomMargin=24
     )
+
     styles = getSampleStyleSheet()
+
     story = [
-        Paragraph("Mentee Management System - Batch Report", styles["Title"]),
         Paragraph(
-            f"Academic Year: {ma['academic_year']} | Semester: {ma['semester']} | "
-            f"Batch: {ma['batch']} | Mentor: {ma['mentor_name']}",
-            styles["Normal"],
+            "Mentee Management Report",
+            styles["Title"]
+        ),
+        Spacer(1, 12),
+        Paragraph(
+            f"Batch: {ma['batch']}",
+            styles["Heading2"]
+        ),
+        Paragraph(
+            f"Total Mentees: {len(df)}",
+            styles["Heading2"]
         ),
         Spacer(1, 12),
     ]
 
+    # ---------------------------------------------------------
+    # STUDENTS
+    # ---------------------------------------------------------
+
     data = [["URN", "Name", "Batch", "Class", "Div", "Roll", "Mobile"]]
+
     data += [
-        [r.urn, r.name, r.batch, r.class_name or "", r.division or "", r.roll_no or "", r.mobile or ""]
+        [
+            r.urn,
+            r.name,
+            r.batch,
+            r.class_name or "",
+            r.division or "",
+            r.roll_no or "",
+            r.mobile or ""
+        ]
         for r in df.itertuples()
     ]
-    t = Table(data, repeatRows=1)
-    t.setStyle(TableStyle([
+
+    student_table = Table(data, repeatRows=1)
+
+    student_table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f4e78")),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
         ("GRID", (0, 0), (-1, -1), .3, colors.grey),
         ("FONTSIZE", (0, 0), (-1, -1), 7),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
     ]))
-    story.append(t)
+
+    story.append(student_table)
+
+    # ---------------------------------------------------------
+    # ATTENDANCE
+    # ---------------------------------------------------------
+
     story.append(PageBreak())
 
-    story.append(Paragraph("Batch Attendance - All Students", styles["Heading2"]))
+    story.append(
+        Paragraph(
+            "Batch Attendance - All Students",
+            styles["Heading2"]
+        )
+    )
+
     if ad.empty:
-        story.append(Paragraph("No attendance data available.", styles["Normal"]))
+
+        story.append(
+            Paragraph(
+                "No attendance data available.",
+                styles["Normal"]
+            )
+        )
+
     else:
-        da = [["URN", "Name", "Sem", "Total", "Present", "Absent", "%"]]
-        da += [[r.urn, r.name, r.semester, r.total_lectures, r.present, r.absent, r.percentage] for r in ad.itertuples()]
-        t = Table(da, repeatRows=1)
-        t.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f4e78")),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-            ("GRID", (0, 0), (-1, -1), .3, colors.grey),
-            ("FONTSIZE", (0, 0), (-1, -1), 7),
+
+        avg_attendance = (
+            ad.groupby(["urn", "name"])["percentage"]
+            .mean()
+            .reset_index()
+            .sort_values("name")
+        )
+
+        attendance_table = [
+            ["Student", "Average Attendance %"]
+        ]
+
+        attendance_table += [
+            [
+                r.name,
+                f"{r.percentage:.1f}"
+            ]
+            for r in avg_attendance.itertuples()
+        ]
+
+        attendance_tbl = Table(
+            attendance_table,
+            colWidths=[310, 180],
+            repeatRows=1
+        )
+
+        attendance_tbl.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.black),
+            ("GRID", (0, 0), (-1, -1), .5, colors.grey),
+            ("FONTSIZE", (0, 0), (-1, -1), 10),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ]))
-        story.append(t)
+
+        story.append(attendance_tbl)
+
+        # -----------------------------------------------------
+        # ATTENDANCE GRAPH
+        # -----------------------------------------------------
+
+        story.append(Spacer(1, 20))
+
+        fig, ax = plt.subplots(figsize=(10, 4))
+
+        ax.bar(
+            avg_attendance["name"],
+            avg_attendance["percentage"]
+        )
+
+        ax.axhline(
+            LOW_ATTENDANCE,
+            linestyle="--",
+            label=f"Low Attendance Threshold ({LOW_ATTENDANCE}%)"
+        )
+
+        ax.set_title(
+            f"Batch Attendance - {ma['batch']}"
+        )
+
+        ax.set_xlabel("Students")
+        ax.set_ylabel("Attendance %")
+        ax.set_ylim(0, 100)
+
+        ax.tick_params(
+            axis="x",
+            rotation=45
+        )
+
+        ax.legend()
+
+        fig.tight_layout()
+
+        graph_buffer = io.BytesIO()
+
+        fig.savefig(
+            graph_buffer,
+            format="png",
+            dpi=140,
+            bbox_inches="tight"
+        )
+
+        plt.close(fig)
+
+        graph_buffer.seek(0)
+
+        story.append(
+            Image(
+                graph_buffer,
+                width=700,
+                height=280
+            )
+        )
+
+    # ---------------------------------------------------------
+    # STUDENTS WITH BACKLOGS
+    # ---------------------------------------------------------
+
     story.append(PageBreak())
 
-    story.append(Paragraph("Semester Marks / Backlogs", styles["Heading2"]))
-    if mk.empty:
-        story.append(Paragraph("No semester marks available.", styles["Normal"]))
+    story.append(
+        Paragraph(
+            "Students with Backlogs",
+            styles["Heading2"]
+        )
+    )
+
+    backlogs = backlog_summary(mk)
+
+    if backlogs.empty:
+
+        story.append(
+            Paragraph(
+                "No students have backlogs.",
+                styles["Normal"]
+            )
+        )
+
     else:
-        dm = [["URN", "Name", "Sem", "Subject", "ISE", "MSE", "ESE", "Total", "Status"]]
-        dm += [[r.urn, r.name, r.semester, r.subject, r.ise, r.mse, r.ese, r.total, r.status] for r in mk.itertuples()]
-        t = Table(dm, repeatRows=1)
-        t.setStyle(TableStyle([
+
+        backlog_data = [
+            [
+                "Name",
+                "Backlogs",
+                "Failed Subjects",
+                "Status"
+            ]
+        ]
+
+        for r in backlogs.itertuples():
+
+            backlog_data.append([
+                r.name,
+                r.backlog_count,
+                Paragraph(
+                    str(r.failed_subjects),
+                    styles["Normal"]
+                ),
+                r.backlog_status
+            ])
+
+        backlog_table = Table(
+            backlog_data,
+            colWidths=[170, 80, 330, 140],
+            repeatRows=1
+        )
+
+        backlog_table.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f4e78")),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-            ("GRID", (0, 0), (-1, -1), .3, colors.grey),
-            ("FONTSIZE", (0, 0), (-1, -1), 7),
+            ("GRID", (0, 0), (-1, -1), .5, colors.grey),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ]))
-        story.append(t)
+
+        story.append(backlog_table)
+
+    # ---------------------------------------------------------
+    # BUILD PDF
+    # ---------------------------------------------------------
 
     doc.build(story)
-    filename = f"Batch_Report_{re.sub(r'[^A-Za-z0-9_.-]', '_', str(ma['batch']))}.pdf"
-    save_report_file(filename, out.getvalue())
+
+    filename = (
+        f"Batch_Report_"
+        f"{re.sub(r'[^A-Za-z0-9_.-]', '_', str(ma['batch']))}.pdf"
+    )
+
+    save_report_file(
+        filename,
+        out.getvalue()
+    )
+
     out.seek(0)
-    return send_file(out, as_attachment=True, download_name=filename, mimetype="application/pdf")
+
+    return send_file(
+        out,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/pdf"
+    )
 
 
 @app.route("/mentor/suggestion/add", methods=["GET", "POST"])
