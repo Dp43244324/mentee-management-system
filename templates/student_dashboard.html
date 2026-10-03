@@ -166,24 +166,25 @@
       </div>
 
       <div class="field">
-        <label>Semester</label>
-        <select name="term_id" class="form-control" required>
+  <label>Semester</label>
 
-          {% for t in terms %}
-            {% if t.semester in [4, 5] %}
+  <select name="term_id" class="form-control" required>
 
-              <option value="{{t.term_id}}"
-                {% if assignment and assignment.term_id == t.term_id %}
-                  selected
-                {% endif %}>
-                {{t.semester}}
-              </option>
+    {% for t in terms %}
+      {% if t.semester in [1, 2, 3, 4, 5, 6, 7, 8] %}
 
-            {% endif %}
-          {% endfor %}
+        <option value="{{t.term_id}}"
+          {% if assignment and assignment.term_id == t.term_id %}
+            selected
+          {% endif %}>
+          {{t.semester}}
+        </option>
 
-        </select>
-      </div>
+      {% endif %}
+    {% endfor %}
+
+  </select>
+</div>
 
     </div>
 
