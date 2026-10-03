@@ -567,12 +567,12 @@ def mentor_dashboard():
     term_id, batch = ma["term_id"], ma["batch"]
     con = db()
     students = con.execute(
-        """SELECT s.*,sa.class_name,sa.division,sa.roll_no
-           FROM Student s
-           JOIN StudentAcademicAssignment sa ON sa.student_id=s.student_id
-           WHERE sa.term_id=? AND sa.batch=? ORDER BY s.name""",
-        (term_id, batch),
-    ).fetchall()
+    """SELECT s.*,sa.class_name,sa.division,sa.roll_no,sa.batch
+       FROM Student s
+       JOIN StudentAcademicAssignment sa ON sa.student_id=s.student_id
+       WHERE sa.term_id=? AND sa.batch=? ORDER BY s.name""",
+    (term_id, batch),
+).fetchall()
     con.close()
     ad = attendance_df(term_id=term_id, batch=batch)
     mk = marks_with_status(term_id=term_id, batch=batch)
