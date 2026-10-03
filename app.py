@@ -322,9 +322,30 @@ def get_terms():
 @app.route("/student")
 @login_required("student")
 def student_dashboard():
-    urn=get_student_urn();s=student_row(urn);ct=current_term();a=assignment_for_student(urn,ct["term_id"] if ct else None);ad=attendance_df(urn);mk=marks_with_status(urn)
-    return render_template("student_dashboard.html",s=s,assignment=a,history=assignments_for_student(urn),terms=get_terms(),attendance=ad.to_dict("records"),marks=mk.to_dict("records"),low_att=ad[ad.percentage<LOW_ATTENDANCE].to_dict("records") if not ad.empty else [],achievements=get_achievements(urn),suggestions=get_suggestions(urn))
+    urn=get_student_urn()
+    s=student_row(urn)
+    ct=current_term()
+    history=assignments_for_student(urn)
+    a=assignment_for_student(urn,ct["term_id"] if ct else None)
 
+    if a is None and history:
+        a=history[0]
+
+    ad=attendance_df(urn)
+    mk=marks_with_status(urn)
+
+    return render_template(
+        "student_dashboard.html",
+        s=s,
+        assignment=a,
+        history=history,
+        terms=get_terms(),
+        attendance=ad.to_dict("records"),
+        marks=mk.to_dict("records"),
+        low_att=ad[ad.percentage<LOW_ATTENDANCE].to_dict("records") if not ad.empty else [],
+        achievements=get_achievements(urn),
+        suggestions=get_suggestions(urn)
+    )
 @app.route("/student/profile",methods=["POST"])
 @login_required("student")
 def student_profile():
