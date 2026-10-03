@@ -1,0 +1,91 @@
+{% extends "base.html" %}{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h2>Reports &amp; Analytics</h2>
+    <p class="small-muted">Selected batch: <b>{{assignment.batch}}</b> · Semester {{assignment.semester}} · {{assignment.academic_year}}</p>
+  </div>
+  <a class="btn btn-outline-secondary" href="{{url_for('mentor_dashboard')}}">Back to Dashboard</a>
+</div>
+
+<div class="card p-4 mb-4">
+  <h4>Individual Report</h4>
+  <p class="small-muted">Search by URN, name or roll number, then select a student.</p>
+  <form method="get" class="row g-2 align-items-end">
+    <div class="col-md-8">
+      <label class="form-label">Individual report (search by URN, name or roll no)</label>
+      <input class="form-control" name="q" value="{{query}}" placeholder="e.g. 1025042513, Vivek, 3097">
+    </div>
+    <div class="col-md-4 d-flex gap-2">
+      <button class="btn btn-primary">Search</button>
+      <a class="btn btn-outline-secondary" href="{{url_for('mentor_reports')}}">Clear</a>
+    </div>
+  </form>
+
+  {% if query %}
+  <div class="mt-3 table-responsive">
+    <table class="table table-hover align-middle">
+      <thead><tr><th>URN</th><th>Name</th><th>Batch</th><th>Roll No</th><th>Action</th></tr></thead>
+      <tbody>
+      {% for s in search_results %}
+        <tr>
+          <td>{{s.urn}}</td><td>{{s.name}}</td><td>{{s.batch}}</td><td>{{s.roll_no or ''}}</td>
+          <td><a class="btn btn-sm btn-primary" href="{{url_for('mentor_reports', q=query, urn=s.urn)}}">Select Student</a></td>
+        </tr>
+      {% else %}
+        <tr><td colspan="5">No student found in your assigned batch.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {% if selected %}
+  <div class="alert alert-info mt-3 mb-3">
+    <b>Selected student:</b> {{selected.name}} · URN {{selected.urn}} · Roll {{selected.roll_no or '—'}}
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-danger" href="{{url_for('individual_pdf', urn=selected.urn)}}">Individual PDF</a>
+    <a class="btn btn-success" href="{{url_for('individual_excel', urn=selected.urn)}}">Individual Excel</a>
+    <a class="btn btn-outline-primary" href="{{url_for('mentor_student', urn=selected.urn)}}">Open Student</a>
+  </div>
+  {% endif %}
+</div>
+
+<div class="card p-4 mb-4">
+  <h4>Batch Report</h4>
+  <p class="small-muted">Reports and analytics for only your assigned batch.</p>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-outline-primary" href="{{url_for('analytics')}}">Show Batch Attendance Graph</a>
+    <a class="btn btn-outline-primary" href="{{url_for('add_mentor_suggestion')}}">Add Mentor Suggestion</a>
+    <a class="btn btn-outline-primary" href="{{url_for('mentor_suggestions')}}">View Mentor Suggestions</a>
+    <a class="btn btn-danger" href="{{url_for('export_pdf')}}">Batch PDF</a>
+    <a class="btn btn-success" href="{{url_for('export_excel')}}">Batch Excel</a>
+    <a class="btn btn-outline-secondary" href="{{url_for('report_files')}}">Open Reports Folder</a>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card p-4 h-100">
+      <h5>Batch Attendance Summary</h5>
+      <div class="table-responsive"><table class="table table-sm">
+        <tr><th>URN</th><th>Name</th><th>Sem</th><th>Attendance</th></tr>
+        {% for r in low %}
+          <tr><td>{{r.urn}}</td><td>{{r.name}}</td><td>{{r.semester}}</td><td>{{r.percentage}}%</td></tr>
+        {% else %}<tr><td colspan="4">No students below 75% attendance.</td></tr>{% endfor %}
+      </table></div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card p-4 h-100">
+      <h5>Students with Backlogs / Failed Subjects</h5>
+      <div class="table-responsive"><table class="table table-sm">
+        <tr><th>URN</th><th>Name</th><th>Sem</th><th>Subject</th></tr>
+        {% for r in fail %}
+          <tr><td>{{r.urn}}</td><td>{{r.name}}</td><td>{{r.semester}}</td><td>{{r.subject}}</td></tr>
+        {% else %}<tr><td colspan="4">No failed subjects.</td></tr>{% endfor %}
+      </table></div>
+    </div>
+  </div>
+</div>
+{% endblock %}

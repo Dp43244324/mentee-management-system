@@ -1,0 +1,12 @@
+{% extends "base.html" %}{% block content %}
+<div class="row justify-content-center"><div class="col-lg-6"><div class="card p-4">
+<h2 class="mb-3">Sign in</h2><p class="small-muted">Students use username + password. Mentors use username + password + their semester/batch mentor code.</p>
+<form method="post">
+<label class="form-label">Username</label><input class="form-control mb-3" name="username" required>
+<label class="form-label">Password</label><input class="form-control mb-3" type="password" name="password" required>
+<label class="form-label">Mentor Code <span class="small-muted">(mentor only)</span></label><input class="form-control mb-3" name="mentor_code" placeholder="Leave blank for student login">
+<button class="btn btn-primary w-100">Sign in</button></form>
+<hr>
+<div class="row g-2"><div class="col-md-6"><a href="{{url_for('student_register')}}" class="btn btn-outline-primary w-100">Student registration</a></div><div class="col-md-6"><a href="{{url_for('mentor_register')}}" class="btn btn-outline-success w-100">Mentor registration</a></div></div>
+<p class="small-muted mt-3 mb-0">Mentor registration is tied to one semester + batch. The system generates a unique Mentor Code after registration.</p>
+</div></div></div>{% endblock %}
