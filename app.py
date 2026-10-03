@@ -238,12 +238,88 @@ def marks_df(urn=None, term_id=None, batch=None):
     q+=" ORDER BY s.name,t.semester,m.subject"; df=query_df(q,p); con.close(); return df
 
 def marks_with_status(urn=None, term_id=None, batch=None):
-    df=marks_df(urn,term_id,batch)
-    if df.empty:
-        df["status"]=pd.Series(dtype=str);df["reason"]=pd.Series(dtype=str);return df
-    vals=[validate_marks(r.ise,r.mse,r.ese) for r in df.itertuples()]
-    df["status"]=[x[4] for x in vals];df["reason"]=[x[5] for x in vals];return df
+    df = marks_df(urn, term_id, batch)
 
+    if df.empty:
+        df["status"] = pd.Series(dtype=str)
+        df["reason"] = pd.Series(dtype=str)
+        return df
+
+    vals = [
+        validate_marks(r.ise, r.mse, r.ese)
+        for r in df.itertuples()
+    ]
+
+    df["status"] = [x[4] for x in vals]
+    df["reason"] = [x[5] for x in vals]
+
+    return df
+
+
+def backlog_summary(mk):
+    """
+    Count failed subjects for each student.
+
+    0 backlogs  -> No Backlogs
+    1 backlog   -> 1 Backlog
+    2 backlogs  -> 2 Backlogs
+    3 backlogs  -> 3 Backlogs
+    4+ backlogs -> More Than 3 Backlogs
+    """
+
+    if mk.empty:
+        return pd.DataFrame(
+            columns=[
+                "urn",
+                "name",
+                "backlog_count",
+                "backlog_status",
+                "failed_subjects"
+            ]
+        )
+
+    fail = mk[mk["status"] == "FAIL"].copy()
+
+    if fail.empty:
+        return pd.DataFrame(
+            columns=[
+                "urn",
+                "name",
+                "backlog_count",
+                "backlog_status",
+                "failed_subjects"
+            ]
+        )
+
+    summary = (
+        fail.groupby(["urn", "name"])
+        .agg(
+            backlog_count=("subject", "count"),
+            failed_subjects=("subject", lambda x: ", ".join(x.astype(str)))
+        )
+        .reset_index()
+    )
+
+    def get_backlog_status(count):
+        if count == 1:
+            return "1 Backlog"
+        elif count == 2:
+            return "2 Backlogs"
+        elif count == 3:
+            return "3 Backlogs"
+        else:
+            return "More Than 3 Backlogs"
+
+    summary["backlog_status"] = summary["backlog_count"].apply(
+        get_backlog_status
+    )
+
+    summary = summary.sort_values(
+        "backlog_count",
+        ascending=False
+    )
+
+    return summary
 def get_achievements(urn):
     con=db(); rows=con.execute("SELECT * FROM AwardsCertificates WHERE urn=? ORDER BY year DESC,achievement_id DESC",(urn,)).fetchall();con.close();return [dict(x) for x in rows]
 
