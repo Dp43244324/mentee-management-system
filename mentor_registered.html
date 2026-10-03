@@ -1,8 +1,0 @@
-{% extends "base.html" %}{% block content %}
-<div class="row justify-content-center"><div class="col-lg-7"><div class="card p-4">
-<h2>Mentor account created</h2>
-<p>Your mentor account for <b>{{assignment.academic_year}}</b>, <b>Semester {{assignment.semester}}</b>, Batch <b>{{assignment.batch}}</b> is ready.</p>
-<div class="alert alert-warning"><b>Save this Mentor Code:</b><div class="fs-4 mt-2">{{mentor_code}}</div><div class="small mt-2">You will need this code together with your username and password when logging in for this assignment.</div></div>
-<p class="small-muted">This code is tied to this mentor + semester + batch assignment. A different semester/batch can have a different mentor and a different code.</p>
-<a class="btn btn-primary" href="{{url_for('login')}}">Go to mentor login</a>
-</div></div></div>{% endblock %}
