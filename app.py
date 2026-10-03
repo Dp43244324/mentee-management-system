@@ -731,6 +731,43 @@ def mentor_reports():
         suggestions=suggestions,
     )
 
+def dataframe_for_report(term_id, batch):
+    """
+    Return students belonging to the mentor's assigned
+    semester + batch, with their academic and profile details.
+    """
+    sql = """
+        SELECT
+            s.urn,
+            s.name,
+            s.address,
+            s.mobile,
+            s.parent_name,
+            s.parent_mobile,
+            s.hobbies,
+            s.ssc_medium,
+            s.hsc_medium,
+            s.ssc_marks,
+            s.hsc_marks,
+            s.awards,
+            s.certifications,
+            sa.class_name,
+            sa.division,
+            sa.batch,
+            sa.roll_no,
+            t.academic_year,
+            t.semester
+        FROM Student s
+        JOIN StudentAcademicAssignment sa
+            ON sa.student_id = s.student_id
+        JOIN AcademicTerm t
+            ON t.term_id = sa.term_id
+        WHERE sa.term_id = ?
+          AND sa.batch = ?
+        ORDER BY s.name
+    """
+
+    return query_df(sql, (term_id, batch))
 
 def report_student(urn):
     """Return a student row only when the student belongs to this mentor's scope."""
