@@ -1,7 +1,0 @@
-{% extends "base.html" %}{% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <div><h2>Batch Attendance Graph</h2><p class="small-muted">Selected batch: {{assignment.batch}} · Semester {{assignment.semester}}</p></div>
-  <a class="btn btn-outline-secondary" href="{{url_for('mentor_reports')}}">Back to Reports</a>
-</div>
-{% if chart %}<div class="card p-4"><img class="img-fluid" src="data:image/png;base64,{{chart}}" alt="Batch attendance graph"></div>{% else %}<div class="alert alert-info">No attendance data is available yet.</div>{% endif %}
-{% endblock %}
