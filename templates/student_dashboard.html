@@ -21,22 +21,22 @@
   </ul>
 
   <div class="tab-content dashboard-content" id="studentTabsContent">
-    <!-- PROFILE -->
+  <!-- PROFILE -->
 <div class="tab-pane fade show active" id="profile-pane" role="tabpanel" tabindex="0">
 
-  <!-- PERSONAL PROFILE -->
   <form method="post" action="{{url_for('student_profile')}}" class="profile-panel">
 
-    <h4 class="profile-section-title">Personal Profile</h4>
+    <h4 class="profile-section-title">Mentee Profile</h4>
 
     <div class="profile-grid">
+
+      <!-- ROW 1 -->
 
       <div class="field">
         <label>URN</label>
         <input class="form-control readonly-field"
                value="{{s.urn}}"
                readonly>
-        <small class="text-muted">Permanent student ID</small>
       </div>
 
       <div class="field">
@@ -44,6 +44,39 @@
         <input class="form-control"
                name="name"
                value="{{s.name or ''}}">
+      </div>
+
+      <div class="field">
+        <label>Batch</label>
+        <input class="form-control"
+               name="batch"
+               value="{{assignment.batch if assignment else ''}}"
+               required>
+      </div>
+
+      <div class="field">
+        <label>Class</label>
+        <input class="form-control"
+               name="class_name"
+               value="{{assignment.class_name if assignment else ''}}">
+      </div>
+
+
+      <!-- ROW 2 -->
+
+      <div class="field">
+        <label>Division</label>
+        <input class="form-control"
+               name="division"
+               value="{{assignment.division if assignment else ''}}"
+               required>
+      </div>
+
+      <div class="field">
+        <label>Roll No</label>
+        <input class="form-control"
+               name="roll_no"
+               value="{{assignment.roll_no if assignment else ''}}">
       </div>
 
       <div class="field">
@@ -59,6 +92,9 @@
                name="mobile"
                value="{{s.mobile or ''}}">
       </div>
+
+
+      <!-- ROW 3 -->
 
       <div class="field">
         <label>Parent Name</label>
@@ -88,6 +124,9 @@
                value="{{s.ssc_medium or ''}}">
       </div>
 
+
+      <!-- ROW 4 -->
+
       <div class="field">
         <label>HSC Medium</label>
         <input class="form-control"
@@ -116,11 +155,30 @@
                value="{{s.awards or ''}}">
       </div>
 
+
+      <!-- ROW 5 -->
+
       <div class="field">
         <label>Certifications</label>
         <input class="form-control"
                name="certifications"
                value="{{s.certifications or ''}}">
+      </div>
+
+      <div class="field">
+        <label>Semester</label>
+        <select name="term_id" class="form-control" required>
+          {% for t in terms %}
+            {% if t.semester in [4, 5] %}
+              <option value="{{t.term_id}}"
+                {% if assignment and assignment.term_id == t.term_id %}
+                  selected
+                {% endif %}>
+                {{t.semester}}
+              </option>
+            {% endif %}
+          {% endfor %}
+        </select>
       </div>
 
     </div>
@@ -132,6 +190,8 @@
     </div>
 
   </form>
+
+</div>
 
 
   <!-- ACADEMIC ASSIGNMENT -->
