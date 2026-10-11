@@ -19,6 +19,11 @@ from flask import send_from_directory
 import uuid
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+RESUME_UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads", "resumes")
+ALLOWED_RESUME_EXTENSIONS = {"pdf", "docx"}
+MAX_RESUME_SIZE = 5 * 1024 * 1024  # 5 MB
+
 DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 LOW_ATTENDANCE = 75
 
