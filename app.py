@@ -673,6 +673,129 @@ def student_profile():
     return redirect(url_for("student_dashboard"))
 
 
+@app.route("/student/participation", methods=["POST"])
+@login_required("student")
+def add_student_participation():
+    urn = get_student_urn()
+    event_name = request.form.get("event_name", "").strip()
+    event_date = request.form.get("event_date", "").strip()
+    event_result = request.form.get("event_result", "").strip()
+
+    if not event_name or not event_date or event_result not in (
+        "Winner", "Runner-up", "Participated"
+    ):
+        flash("Please enter valid participation details.", "danger")
+        return redirect(url_for("student_dashboard"))
+
+    con = db()
+    try:
+        con.execute("""
+            INSERT INTO StudentParticipation
+                (urn, event_name, event_date, event_result)
+            VALUES (?, ?, ?, ?)
+        """, (urn, event_name, event_date, event_result))
+        con.commit()
+        flash("Participation details added.", "success")
+    except Exception:
+        con.rollback()
+        flash("Could not save participation details.", "danger")
+    finally:
+        con.close()
+
+    return redirect(url_for("student_dashboard"))
+
+
+@app.route("/student/career-profile", methods=["POST"])
+@login_required("student")
+def save_student_career_profile():
+    urn = get_student_urn()
+
+    fields = (
+        "hackerrank_url",
+        "github_url",
+        "vision",
+        "short_term_goal",
+        "short_term_action_plan",
+        "long_term_goal",
+        "long_term_action_plan",
+    )
+    values = {
+        field: request.form.get(field, "").strip()
+        for field in fields
+    }
+
+    for field in ("hackerrank_url", "github_url"):
+        url = values[field]
+        if url and not url.startswith(("https://", "http://")):
+            flash("Profile links must begin with http:// or https://.", "danger")
+            return redirect(url_for("student_dashboard"))
+
+    con = db()
+    try:
+        con.execute("""
+            INSERT INTO StudentCareerProfile (
+                urn, hackerrank_url, github_url, vision,
+                short_term_goal, short_term_action_plan,
+                long_term_goal, long_term_action_plan
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(urn) DO UPDATE SET
+                hackerrank_url = excluded.hackerrank_url,
+                github_url = excluded.github_url,
+                vision = excluded.vision,
+                short_term_goal = excluded.short_term_goal,
+                short_term_action_plan = excluded.short_term_action_plan,
+                long_term_goal = excluded.long_term_goal,
+                long_term_action_plan = excluded.long_term_action_plan,
+                updated_at = CURRENT_TIMESTAMP
+        """, (
+            urn,
+            values["hackerrank_url"],
+            values["github_url"],
+            values["vision"],
+            values["short_term_goal"],
+            values["short_term_action_plan"],
+            values["long_term_goal"],
+            values["long_term_action_plan"],
+        ))
+        con.commit()
+        flash("Career profile saved successfully.", "success")
+    except Exception:
+        con.rollback()
+        flash("Could not save your career profile.", "danger")
+    finally:
+        con.close()
+
+    return redirect(url_for("student_dashboard"))
+
+
+@app.route("/student/mission", methods=["POST"])
+@login_required("student")
+def add_student_mission():
+    urn = get_student_urn()
+    mission = request.form.get("mission", "").strip()
+
+    if not mission:
+        flash("Please enter a mission.", "danger")
+        return redirect(url_for("student_dashboard"))
+
+    con = db()
+    try:
+        con.execute("""
+            INSERT INTO StudentMission (urn, mission)
+            VALUES (?, ?)
+        """, (urn, mission))
+        con.commit()
+        flash("Mission added successfully.", "success")
+    except Exception:
+        con.rollback()
+        flash("Could not save the mission.", "danger")
+    finally:
+        con.close()
+
+    return redirect(url_for("student_dashboard"))
+
+
 @app.route("/student/resume", methods=["POST"])
 @login_required("student")
 def upload_student_resume():
