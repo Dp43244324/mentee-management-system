@@ -343,15 +343,52 @@ def attendance_df(urn=None, term_id=None, batch=None):
     q+=" ORDER BY s.name,t.semester"; df=query_df(q,p); con.close(); return df
 
 def marks_df(urn=None, term_id=None, batch=None):
-    con=db(); q="""SELECT m.urn,s.name,sa.batch,sa.division,t.academic_year,t.semester,m.subject,m.ise,m.mse,m.ese,
-         ROUND(CAST((m.ise+m.mse+m.ese) AS NUMERIC),2) total FROM SemesterMarks m JOIN Student s ON s.urn=m.urn
-         JOIN AcademicTerm t ON t.term_id=m.term_id LEFT JOIN StudentAcademicAssignment sa ON sa.student_id=s.student_id AND sa.term_id=m.term_id"""
-    p=[];w=[]
-    if urn:w.append("m.urn=?");p.append(urn)
-    if term_id:w.append("m.term_id=?");p.append(term_id)
-    if batch and batch!="ALL":w.append("sa.batch=?");p.append(batch)
-    if w:q+=" WHERE "+" AND ".join(w)
-    q+=" ORDER BY s.name,t.semester,m.subject"; df=query_df(q,p); con.close(); return df
+    con = db()
+
+    try:
+        q = """
+            SELECT
+                m.urn,
+                s.name,
+                sa.batch,
+                sa.division,
+                t.academic_year,
+                t.semester,
+                m.subject,
+                m.total,
+                m.status
+            FROM SemesterMarks m
+            JOIN Student s ON s.urn = m.urn
+            JOIN AcademicTerm t ON t.term_id = m.term_id
+            LEFT JOIN StudentAcademicAssignment sa
+                ON sa.student_id = s.student_id
+                AND sa.term_id = m.term_id
+        """
+
+        p = []
+        w = []
+
+        if urn:
+            w.append("m.urn = ?")
+            p.append(urn)
+
+        if term_id:
+            w.append("m.term_id = ?")
+            p.append(term_id)
+
+        if batch and batch != "ALL":
+            w.append("sa.batch = ?")
+            p.append(batch)
+
+        if w:
+            q += " WHERE " + " AND ".join(w)
+
+        q += " ORDER BY s.name, t.semester, m.subject"
+
+        return query_df(q, p)
+
+    finally:
+        con.close()
 
 def marks_with_status(urn=None, term_id=None, batch=None):
     df = marks_df(urn, term_id, batch)
@@ -361,13 +398,11 @@ def marks_with_status(urn=None, term_id=None, batch=None):
         df["reason"] = pd.Series(dtype=str)
         return df
 
-    vals = [
-        validate_marks(r.ise, r.mse, r.ese)
-        for r in df.itertuples()
-    ]
+    # Use the Pass/Fail result selected by the student.
+    if "status" not in df.columns:
+        df["status"] = "Fail"
 
-    df["status"] = [x[4] for x in vals]
-    df["reason"] = [x[5] for x in vals]
+    df["reason"] = ""
 
     return df
 
@@ -1037,7 +1072,10 @@ def student_marks():
         if not 0 <= total <= 100:
             raise ValueError("Total marks must be between 0 and 100.")
 
-        status = "Pass" if total >= 40 else "Fail"
+        status = request.form.get("status", "").strip().capitalize()
+
+if status not in ("Pass", "Fail"):
+    raise ValueError("Please select Pass or Fail.")
 
         con = db()
 
