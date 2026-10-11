@@ -105,6 +105,43 @@ def init_db():
                 """CREATE TABLE IF NOT EXISTS SemesterMarks(mark_id SERIAL PRIMARY KEY, urn TEXT NOT NULL REFERENCES Student(urn) ON DELETE CASCADE, term_id INTEGER NOT NULL REFERENCES AcademicTerm(term_id) ON DELETE CASCADE, semester INTEGER NOT NULL, subject TEXT NOT NULL, ise DOUBLE PRECISION NOT NULL, mse DOUBLE PRECISION NOT NULL, ese DOUBLE PRECISION NOT NULL, UNIQUE(urn,term_id,subject))""",
                 """CREATE TABLE IF NOT EXISTS MentorSuggestions(suggestion_id SERIAL PRIMARY KEY, urn TEXT NOT NULL REFERENCES Student(urn) ON DELETE CASCADE, semester INTEGER NOT NULL, suggestion TEXT NOT NULL, suggestion_date DATE NOT NULL)""",
                 """CREATE TABLE IF NOT EXISTS AwardsCertificates(achievement_id SERIAL PRIMARY KEY, urn TEXT NOT NULL REFERENCES Student(urn) ON DELETE CASCADE, achievement_type TEXT, title TEXT, organization TEXT, year TEXT)""",
+                """CREATE TABLE IF NOT EXISTS StudentParticipation(
+    participation_id SERIAL PRIMARY KEY,
+    urn TEXT NOT NULL REFERENCES Student(urn) ON DELETE CASCADE,
+    event_name TEXT NOT NULL,
+    event_date DATE NOT NULL,
+    event_result TEXT NOT NULL CHECK(event_result IN ('Winner','Runner-up','Participated')),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+)""",
+"""CREATE TABLE IF NOT EXISTS StudentCareerProfile(
+    urn TEXT PRIMARY KEY REFERENCES Student(urn) ON DELETE CASCADE,
+    hackerrank_url TEXT,
+    github_url TEXT,
+    vision TEXT,
+    short_term_goal TEXT,
+    short_term_action_plan TEXT,
+    long_term_goal TEXT,
+    long_term_action_plan TEXT,
+    resume_filename TEXT,
+    resume_path TEXT,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+)""",
+"""CREATE TABLE IF NOT EXISTS StudentMission(
+    mission_id SERIAL PRIMARY KEY,
+    urn TEXT NOT NULL REFERENCES Student(urn) ON DELETE CASCADE,
+    mission TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+)""",
+"""CREATE TABLE IF NOT EXISTS StudentMonthlyAttendance(
+    entry_id SERIAL PRIMARY KEY,
+    urn TEXT NOT NULL REFERENCES Student(urn) ON DELETE CASCADE,
+    term_id INTEGER NOT NULL REFERENCES AcademicTerm(term_id) ON DELETE CASCADE,
+    start_month INTEGER NOT NULL CHECK(start_month BETWEEN 1 AND 12),
+    end_month INTEGER NOT NULL CHECK(end_month BETWEEN 1 AND 12),
+    monthly_percentage DOUBLE PRECISION NOT NULL CHECK(monthly_percentage BETWEEN 0 AND 100),
+    cumulative_percentage DOUBLE PRECISION NOT NULL CHECK(cumulative_percentage BETWEEN 0 AND 100),
+    UNIQUE(urn, term_id, start_month, end_month)
+)""",
                 "CREATE INDEX IF NOT EXISTS idx_student_assignment_term_batch ON StudentAcademicAssignment(term_id,batch)",
                 "CREATE INDEX IF NOT EXISTS idx_mentor_assignment_term_batch ON MentorAssignment(term_id,batch)",
             ]
@@ -120,6 +157,48 @@ def init_db():
                 """CREATE TABLE IF NOT EXISTS SemesterMarks(mark_id INTEGER PRIMARY KEY AUTOINCREMENT, urn TEXT NOT NULL, term_id INTEGER NOT NULL, semester INTEGER NOT NULL, subject TEXT NOT NULL, ise REAL NOT NULL, mse REAL NOT NULL, ese REAL NOT NULL, UNIQUE(urn,term_id,subject), FOREIGN KEY(urn) REFERENCES Student(urn) ON DELETE CASCADE, FOREIGN KEY(term_id) REFERENCES AcademicTerm(term_id) ON DELETE CASCADE)""",
                 """CREATE TABLE IF NOT EXISTS MentorSuggestions(suggestion_id INTEGER PRIMARY KEY AUTOINCREMENT, urn TEXT NOT NULL, semester INTEGER NOT NULL, suggestion TEXT NOT NULL, suggestion_date TEXT NOT NULL, FOREIGN KEY(urn) REFERENCES Student(urn) ON DELETE CASCADE)""",
                 """CREATE TABLE IF NOT EXISTS AwardsCertificates(achievement_id INTEGER PRIMARY KEY AUTOINCREMENT, urn TEXT NOT NULL, achievement_type TEXT, title TEXT, organization TEXT, year TEXT, FOREIGN KEY(urn) REFERENCES Student(urn) ON DELETE CASCADE)""",
+                """CREATE TABLE IF NOT EXISTS StudentParticipation(
+    participation_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    urn TEXT NOT NULL,
+    event_name TEXT NOT NULL,
+    event_date TEXT NOT NULL,
+    event_result TEXT NOT NULL CHECK(event_result IN ('Winner','Runner-up','Participated')),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(urn) REFERENCES Student(urn) ON DELETE CASCADE
+)""",
+"""CREATE TABLE IF NOT EXISTS StudentCareerProfile(
+    urn TEXT PRIMARY KEY,
+    hackerrank_url TEXT,
+    github_url TEXT,
+    vision TEXT,
+    short_term_goal TEXT,
+    short_term_action_plan TEXT,
+    long_term_goal TEXT,
+    long_term_action_plan TEXT,
+    resume_filename TEXT,
+    resume_path TEXT,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(urn) REFERENCES Student(urn) ON DELETE CASCADE
+)""",
+"""CREATE TABLE IF NOT EXISTS StudentMission(
+    mission_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    urn TEXT NOT NULL,
+    mission TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(urn) REFERENCES Student(urn) ON DELETE CASCADE
+)""",
+"""CREATE TABLE IF NOT EXISTS StudentMonthlyAttendance(
+    entry_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    urn TEXT NOT NULL,
+    term_id INTEGER NOT NULL,
+    start_month INTEGER NOT NULL CHECK(start_month BETWEEN 1 AND 12),
+    end_month INTEGER NOT NULL CHECK(end_month BETWEEN 1 AND 12),
+    monthly_percentage REAL NOT NULL CHECK(monthly_percentage BETWEEN 0 AND 100),
+    cumulative_percentage REAL NOT NULL CHECK(cumulative_percentage BETWEEN 0 AND 100),
+    UNIQUE(urn, term_id, start_month, end_month),
+    FOREIGN KEY(urn) REFERENCES Student(urn) ON DELETE CASCADE,
+    FOREIGN KEY(term_id) REFERENCES AcademicTerm(term_id) ON DELETE CASCADE
+)""",
                 "CREATE INDEX IF NOT EXISTS idx_student_assignment_term_batch ON StudentAcademicAssignment(term_id,batch)",
                 "CREATE INDEX IF NOT EXISTS idx_mentor_assignment_term_batch ON MentorAssignment(term_id,batch)",
             ]
