@@ -1074,8 +1074,8 @@ def student_marks():
 
         status = request.form.get("status", "").strip().capitalize()
 
-if status not in ("Pass", "Fail"):
-    raise ValueError("Please select Pass or Fail.")
+        if status not in ("Pass", "Fail"):
+         raise ValueError("Please select Pass or Fail.")
 
         con = db()
 
