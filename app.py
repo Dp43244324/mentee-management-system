@@ -971,6 +971,41 @@ def mentor_student(urn):
     ad=attendance_df(urn,term_id=ma["term_id"]);mk=marks_with_status(urn,term_id=ma["term_id"])
     return render_template("mentor_student.html",s=s,assignment=assignment,attendance=ad.to_dict("records"),marks=mk.to_dict("records"),achievements=get_achievements(urn),suggestions=get_suggestions(urn))
 
+
+@app.route("/mentor/student/<urn>/resume")
+@login_required("mentor")
+def download_student_resume(urn):
+    if not mentor_batch_ok(urn):
+        abort(403)
+
+    con = db()
+    try:
+        profile = con.execute("""
+            SELECT resume_filename, resume_path
+            FROM StudentCareerProfile
+            WHERE urn = ?
+        """, (urn,)).fetchone()
+    finally:
+        con.close()
+
+    if not profile or not profile["resume_path"]:
+        flash("No resume has been uploaded for this student.", "warning")
+        return redirect(url_for("mentor_student", urn=urn))
+
+    stored_name = os.path.basename(profile["resume_path"])
+    file_path = os.path.join(RESUME_UPLOAD_FOLDER, stored_name)
+
+    if not os.path.isfile(file_path):
+        flash("Resume file is not currently available.", "danger")
+        return redirect(url_for("mentor_student", urn=urn))
+
+    return send_from_directory(
+        RESUME_UPLOAD_FOLDER,
+        stored_name,
+        as_attachment=True,
+        download_name=secure_filename(profile["resume_filename"] or stored_name)
+    )
+
 @app.route("/mentor/suggestion",methods=["POST"])
 @login_required("mentor")
 def mentor_suggestion():
