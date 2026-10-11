@@ -681,7 +681,6 @@ def student_has_semester(urn, semester):
     con=db(); r=con.execute("""SELECT sa.assignment_id FROM StudentAcademicAssignment sa JOIN Student s ON s.student_id=sa.student_id JOIN AcademicTerm t ON t.term_id=sa.term_id WHERE s.urn=? AND t.semester=?""",(urn,semester)).fetchone(); con.close(); return bool(r)
 
 
-python
 @app.route("/student/attendance", methods=["POST"])
 @login_required("student")
 def student_attendance():
