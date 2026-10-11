@@ -474,20 +474,58 @@ def student_register():
 def get_terms():
     con=db();rows=con.execute("SELECT * FROM AcademicTerm ORDER BY term_id DESC").fetchall();con.close();return [dict(x) for x in rows]
 
+
 @app.route("/student")
 @login_required("student")
 def student_dashboard():
-    urn=get_student_urn()
-    s=student_row(urn)
-    ct=current_term()
-    history=assignments_for_student(urn)
-    a=assignment_for_student(urn,ct["term_id"] if ct else None)
+    urn = get_student_urn()
+    s = student_row(urn)
+    ct = current_term()
+    history = assignments_for_student(urn)
+    a = assignment_for_student(urn, ct["term_id"] if ct else None)
 
     if a is None and history:
-        a=history[0]
+        a = history[0]
 
-    ad=attendance_df(urn)
-    mk=marks_with_status(urn)
+    ad = attendance_df(urn)
+    mk = marks_with_status(urn)
+
+    con = db()
+    try:
+        monthly_rows = con.execute("""
+            SELECT
+                sma.*,
+                t.semester
+            FROM StudentMonthlyAttendance sma
+            JOIN AcademicTerm t ON t.term_id = sma.term_id
+            WHERE sma.urn = ?
+            ORDER BY t.semester, sma.start_month, sma.end_month
+        """, (urn,)).fetchall()
+
+        monthly_attendance = []
+
+        month_names = [
+            "", "January", "February", "March", "April",
+            "May", "June", "July", "August", "September",
+            "October", "November", "December"
+        ]
+
+        for r in monthly_rows:
+            start = r["start_month"]
+            end = r["end_month"]
+
+            period = month_names[start]
+            if end != start:
+                period += "–" + month_names[end]
+
+            monthly_attendance.append({
+                "semester": r["semester"],
+                "period": period,
+                "monthly_percentage": r["monthly_percentage"],
+                "cumulative_percentage": r["cumulative_percentage"]
+            })
+    finally:
+        con.close()
 
     return render_template(
         "student_dashboard.html",
@@ -496,11 +534,14 @@ def student_dashboard():
         history=history,
         terms=get_terms(),
         attendance=ad.to_dict("records"),
+        monthly_attendance=monthly_attendance,
         marks=mk.to_dict("records"),
-        low_att=ad[ad.percentage<LOW_ATTENDANCE].to_dict("records") if not ad.empty else [],
+        low_att=ad[ad.percentage < LOW_ATTENDANCE].to_dict("records")
+        if not ad.empty else [],
         achievements=get_achievements(urn),
         suggestions=get_suggestions(urn)
     )
+
 @app.route("/student/profile",methods=["POST"])
 @login_required("student")
 def student_profile():
@@ -612,6 +653,7 @@ def student_profile():
         con.close()
 
     return redirect(url_for("student_dashboard"))
+    
 @app.route("/student/academic-assignment",methods=["POST"])
 @login_required("student")
 def student_academic_assignment():
@@ -639,6 +681,7 @@ def student_has_semester(urn, semester):
     con=db(); r=con.execute("""SELECT sa.assignment_id FROM StudentAcademicAssignment sa JOIN Student s ON s.student_id=sa.student_id JOIN AcademicTerm t ON t.term_id=sa.term_id WHERE s.urn=? AND t.semester=?""",(urn,semester)).fetchone(); con.close(); return bool(r)
 
 
+```python
 @app.route("/student/attendance", methods=["POST"])
 @login_required("student")
 def student_attendance():
@@ -648,6 +691,7 @@ def student_attendance():
     try:
         semester = int(request.form.get("semester", ""))
         start_month = int(request.form.get("start_month", ""))
+        end_month = int(request.form.get("end_month", ""))
         monthly_percentage = float(request.form.get("monthly_percentage", ""))
         cumulative_percentage = float(request.form.get("cumulative_percentage", ""))
 
@@ -655,7 +699,10 @@ def student_attendance():
             raise ValueError("Select a valid semester.")
 
         if start_month not in range(1, 13):
-            raise ValueError("Select a valid month.")
+            raise ValueError("Select a valid starting month.")
+
+        if end_month not in range(start_month, 13):
+            raise ValueError("Select a valid ending month.")
 
         if not (0 <= monthly_percentage <= 100):
             raise ValueError("Monthly attendance must be between 0 and 100.")
@@ -676,11 +723,15 @@ def student_attendance():
         if not term:
             raise ValueError("You are not assigned to that semester.")
 
-        # Save or update this month's attendance entry.
         con.execute("""
-            INSERT INTO StudentMonthlyAttendance
-                (urn, term_id, start_month, end_month,
-                 monthly_percentage, cumulative_percentage)
+            INSERT INTO StudentMonthlyAttendance (
+                urn,
+                term_id,
+                start_month,
+                end_month,
+                monthly_percentage,
+                cumulative_percentage
+            )
             VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT(urn, term_id, start_month, end_month)
             DO UPDATE SET
@@ -690,7 +741,7 @@ def student_attendance():
             urn,
             term["term_id"],
             start_month,
-            start_month,
+            end_month,
             monthly_percentage,
             cumulative_percentage
         ))
