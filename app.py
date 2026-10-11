@@ -40,6 +40,8 @@ else:
     CLOUD_MODE = False
 
 app = Flask(__name__)
+os.makedirs(RESUME_UPLOAD_FOLDER, exist_ok=True)
+
 app.secret_key = os.getenv("SECRET_KEY") or secrets.token_hex(32)
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
