@@ -909,6 +909,7 @@ def student_has_semester(urn, semester):
     con=db(); r=con.execute("""SELECT sa.assignment_id FROM StudentAcademicAssignment sa JOIN Student s ON s.student_id=sa.student_id JOIN AcademicTerm t ON t.term_id=sa.term_id WHERE s.urn=? AND t.semester=?""",(urn,semester)).fetchone(); con.close(); return bool(r)
 
 
+
 @app.route("/student/attendance", methods=["POST"])
 @login_required("student")
 def student_attendance():
@@ -919,8 +920,9 @@ def student_attendance():
         semester = int(request.form.get("semester", ""))
         start_month = int(request.form.get("start_month", ""))
         end_month = int(request.form.get("end_month", ""))
-        monthly_percentage = float(request.form.get("monthly_percentage", ""))
-        cumulative_percentage = float(request.form.get("cumulative_percentage", ""))
+        monthly_percentage = float(
+            request.form.get("monthly_percentage", "")
+        )
 
         if semester not in range(1, 9):
             raise ValueError("Select a valid semester.")
@@ -929,13 +931,14 @@ def student_attendance():
             raise ValueError("Select a valid starting month.")
 
         if end_month not in range(start_month, 13):
-            raise ValueError("Select a valid ending month.")
+            raise ValueError(
+                "Ending month must be the same as or later than starting month."
+            )
 
         if not (0 <= monthly_percentage <= 100):
-            raise ValueError("Monthly attendance must be between 0 and 100.")
-
-        if not (0 <= cumulative_percentage <= 100):
-            raise ValueError("Cumulative attendance must be between 0 and 100.")
+            raise ValueError(
+                "Attendance percentage must be between 0 and 100."
+            )
 
         term = con.execute("""
             SELECT t.term_id
@@ -950,6 +953,7 @@ def student_attendance():
         if not term:
             raise ValueError("You are not assigned to that semester.")
 
+        # Retain the database column, but no longer use cumulative attendance.
         con.execute("""
             INSERT INTO StudentMonthlyAttendance (
                 urn,
@@ -959,26 +963,24 @@ def student_attendance():
                 monthly_percentage,
                 cumulative_percentage
             )
-            VALUES (?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, 0)
             ON CONFLICT(urn, term_id, start_month, end_month)
             DO UPDATE SET
-                monthly_percentage = excluded.monthly_percentage,
-                cumulative_percentage = excluded.cumulative_percentage
+                monthly_percentage = excluded.monthly_percentage
         """, (
             urn,
             term["term_id"],
             start_month,
             end_month,
-            monthly_percentage,
-            cumulative_percentage
+            monthly_percentage
         ))
 
         con.commit()
-        flash("Monthly attendance saved successfully.", "success")
+        flash("Attendance period saved successfully.", "success")
 
     except (ValueError, TypeError) as e:
         con.rollback()
-        flash(str(e) or "Enter valid attendance percentages.", "danger")
+        flash(str(e) or "Enter valid attendance details.", "danger")
 
     except Exception:
         con.rollback()
@@ -988,6 +990,7 @@ def student_attendance():
         con.close()
 
     return redirect(url_for("student_dashboard"))
+
 
 
 @app.route("/student/marks",methods=["POST"])
