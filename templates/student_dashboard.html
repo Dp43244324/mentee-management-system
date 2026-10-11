@@ -416,17 +416,21 @@
           action="{{ url_for('student_attendance') }}"
           class="inline-entry-form">
 
-      <div class="entry-field">
-        <label>Semester</label>
-        <select class="form-control" name="semester" required>
-          <option value="">Select semester</option>
-          {% for t in terms %}
-            {% if t.semester in [4, 5] %}
-              <option value="{{ t.semester }}">{{ t.semester }}</option>
-            {% endif %}
-          {% endfor %}
-        </select>
-      </div>
+<div class="entry-field">
+    <label for="semester">Semester (1–8)</label>
+    <input
+        type="number"
+        class="form-control"
+        name="semester"
+        id="semester"
+        min="1"
+        max="8"
+        step="1"
+        placeholder="Enter semester (1–8)"
+        required
+    >
+</div>
+
 
       <div class="entry-field">
         <label>Starting Month</label>
