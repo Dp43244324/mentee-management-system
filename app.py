@@ -638,17 +638,79 @@ def student_academic_assignment():
 def student_has_semester(urn, semester):
     con=db(); r=con.execute("""SELECT sa.assignment_id FROM StudentAcademicAssignment sa JOIN Student s ON s.student_id=sa.student_id JOIN AcademicTerm t ON t.term_id=sa.term_id WHERE s.urn=? AND t.semester=?""",(urn,semester)).fetchone(); con.close(); return bool(r)
 
-@app.route("/student/attendance",methods=["POST"])
+
+@app.route("/student/attendance", methods=["POST"])
 @login_required("student")
 def student_attendance():
+    urn = get_student_urn()
+    con = db()
+
     try:
-        sem=int(request.form["semester"]);total=int(request.form["total"]);present=int(request.form["present"])
-        if sem not in range(1,9) or total<=0 or present<0 or present>total or not student_has_semester(get_student_urn(), sem):raise ValueError
-        con=db(); term=con.execute("""SELECT t.term_id FROM StudentAcademicAssignment sa JOIN Student s ON s.student_id=sa.student_id JOIN AcademicTerm t ON t.term_id=sa.term_id WHERE s.urn=? AND t.semester=?""",(get_student_urn(),sem)).fetchone()
-        if not term: raise ValueError("You are not assigned to that semester.")
-        con.execute("""INSERT INTO Attendance(urn,term_id,semester,total_lectures,present,absent) VALUES(?,?,?,?,?,?) ON CONFLICT(urn,term_id) DO UPDATE SET total_lectures=excluded.total_lectures,present=excluded.present,absent=excluded.absent""",(get_student_urn(),term["term_id"],sem,total,present,total-present));con.commit();con.close();flash("Attendance saved.","success")
-    except Exception:flash("Enter valid attendance values.","danger")
+        semester = int(request.form.get("semester", ""))
+        start_month = int(request.form.get("start_month", ""))
+        monthly_percentage = float(request.form.get("monthly_percentage", ""))
+        cumulative_percentage = float(request.form.get("cumulative_percentage", ""))
+
+        if semester not in range(1, 9):
+            raise ValueError("Select a valid semester.")
+
+        if start_month not in range(1, 13):
+            raise ValueError("Select a valid month.")
+
+        if not (0 <= monthly_percentage <= 100):
+            raise ValueError("Monthly attendance must be between 0 and 100.")
+
+        if not (0 <= cumulative_percentage <= 100):
+            raise ValueError("Cumulative attendance must be between 0 and 100.")
+
+        term = con.execute("""
+            SELECT t.term_id
+            FROM StudentAcademicAssignment sa
+            JOIN Student s ON s.student_id = sa.student_id
+            JOIN AcademicTerm t ON t.term_id = sa.term_id
+            WHERE s.urn = ? AND t.semester = ?
+            ORDER BY t.term_id DESC
+            LIMIT 1
+        """, (urn, semester)).fetchone()
+
+        if not term:
+            raise ValueError("You are not assigned to that semester.")
+
+        # Save or update this month's attendance entry.
+        con.execute("""
+            INSERT INTO StudentMonthlyAttendance
+                (urn, term_id, start_month, end_month,
+                 monthly_percentage, cumulative_percentage)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(urn, term_id, start_month, end_month)
+            DO UPDATE SET
+                monthly_percentage = excluded.monthly_percentage,
+                cumulative_percentage = excluded.cumulative_percentage
+        """, (
+            urn,
+            term["term_id"],
+            start_month,
+            start_month,
+            monthly_percentage,
+            cumulative_percentage
+        ))
+
+        con.commit()
+        flash("Monthly attendance saved successfully.", "success")
+
+    except (ValueError, TypeError) as e:
+        con.rollback()
+        flash(str(e) or "Enter valid attendance percentages.", "danger")
+
+    except Exception:
+        con.rollback()
+        flash("Could not save attendance. Please try again.", "danger")
+
+    finally:
+        con.close()
+
     return redirect(url_for("student_dashboard"))
+
 
 @app.route("/student/marks",methods=["POST"])
 @login_required("student")
