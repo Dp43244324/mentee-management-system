@@ -120,7 +120,17 @@ def init_db():
                 """CREATE TABLE IF NOT EXISTS StudentAcademicAssignment(assignment_id SERIAL PRIMARY KEY, student_id INTEGER NOT NULL REFERENCES Student(student_id) ON DELETE CASCADE, term_id INTEGER NOT NULL REFERENCES AcademicTerm(term_id) ON DELETE CASCADE, class_name TEXT, division TEXT, batch TEXT NOT NULL, roll_no TEXT, UNIQUE(student_id,term_id))""",
                 """CREATE TABLE IF NOT EXISTS MentorAssignment(mentor_assignment_id SERIAL PRIMARY KEY, mentor_id INTEGER REFERENCES Mentor(mentor_id) ON DELETE SET NULL, term_id INTEGER NOT NULL REFERENCES AcademicTerm(term_id) ON DELETE CASCADE, department TEXT, batch TEXT NOT NULL, registration_code TEXT UNIQUE NOT NULL, mentor_code TEXT UNIQUE, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE(term_id,batch))""",
                 """CREATE TABLE IF NOT EXISTS Attendance(attendance_id SERIAL PRIMARY KEY, urn TEXT NOT NULL REFERENCES Student(urn) ON DELETE CASCADE, term_id INTEGER NOT NULL REFERENCES AcademicTerm(term_id) ON DELETE CASCADE, semester INTEGER NOT NULL, total_lectures INTEGER NOT NULL, present INTEGER NOT NULL, absent INTEGER NOT NULL, UNIQUE(urn,term_id))""",
-                """CREATE TABLE IF NOT EXISTS SemesterMarks(mark_id SERIAL PRIMARY KEY, urn TEXT NOT NULL REFERENCES Student(urn) ON DELETE CASCADE, term_id INTEGER NOT NULL REFERENCES AcademicTerm(term_id) ON DELETE CASCADE, semester INTEGER NOT NULL, subject TEXT NOT NULL, ise DOUBLE PRECISION NOT NULL, mse DOUBLE PRECISION NOT NULL, ese DOUBLE PRECISION NOT NULL, UNIQUE(urn,term_id,subject))""",
+                
+"""CREATE TABLE IF NOT EXISTS SemesterMarks(
+    mark_id SERIAL PRIMARY KEY,
+    urn TEXT NOT NULL REFERENCES Student(urn) ON DELETE CASCADE,
+    term_id INTEGER NOT NULL REFERENCES AcademicTerm(term_id) ON DELETE CASCADE,
+    semester INTEGER NOT NULL,
+    subject TEXT NOT NULL,
+    total DOUBLE PRECISION NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'Fail',
+    UNIQUE(urn, term_id, subject)
+)""",
                 """CREATE TABLE IF NOT EXISTS MentorSuggestions(suggestion_id SERIAL PRIMARY KEY, urn TEXT NOT NULL REFERENCES Student(urn) ON DELETE CASCADE, semester INTEGER NOT NULL, suggestion TEXT NOT NULL, suggestion_date DATE NOT NULL)""",
                 """CREATE TABLE IF NOT EXISTS AwardsCertificates(achievement_id SERIAL PRIMARY KEY, urn TEXT NOT NULL REFERENCES Student(urn) ON DELETE CASCADE, achievement_type TEXT, title TEXT, organization TEXT, year TEXT)""",
                 """CREATE TABLE IF NOT EXISTS StudentParticipation(
@@ -172,7 +182,16 @@ def init_db():
                 """CREATE TABLE IF NOT EXISTS StudentAcademicAssignment(assignment_id INTEGER PRIMARY KEY AUTOINCREMENT, student_id INTEGER NOT NULL, term_id INTEGER NOT NULL, class_name TEXT, division TEXT, batch TEXT NOT NULL, roll_no TEXT, UNIQUE(student_id,term_id), FOREIGN KEY(student_id) REFERENCES Student(student_id) ON DELETE CASCADE, FOREIGN KEY(term_id) REFERENCES AcademicTerm(term_id) ON DELETE CASCADE)""",
                 """CREATE TABLE IF NOT EXISTS MentorAssignment(mentor_assignment_id INTEGER PRIMARY KEY AUTOINCREMENT, mentor_id INTEGER, term_id INTEGER NOT NULL, department TEXT, batch TEXT NOT NULL, registration_code TEXT UNIQUE NOT NULL, mentor_code TEXT UNIQUE, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE(term_id,batch), FOREIGN KEY(mentor_id) REFERENCES Mentor(mentor_id) ON DELETE SET NULL, FOREIGN KEY(term_id) REFERENCES AcademicTerm(term_id) ON DELETE CASCADE)""",
                 """CREATE TABLE IF NOT EXISTS Attendance(attendance_id INTEGER PRIMARY KEY AUTOINCREMENT, urn TEXT NOT NULL, term_id INTEGER NOT NULL, semester INTEGER NOT NULL, total_lectures INTEGER NOT NULL, present INTEGER NOT NULL, absent INTEGER NOT NULL, UNIQUE(urn,term_id), FOREIGN KEY(urn) REFERENCES Student(urn) ON DELETE CASCADE, FOREIGN KEY(term_id) REFERENCES AcademicTerm(term_id) ON DELETE CASCADE)""",
-                """CREATE TABLE IF NOT EXISTS SemesterMarks(mark_id INTEGER PRIMARY KEY AUTOINCREMENT, urn TEXT NOT NULL, term_id INTEGER NOT NULL, semester INTEGER NOT NULL, subject TEXT NOT NULL, ise REAL NOT NULL, mse REAL NOT NULL, ese REAL NOT NULL, UNIQUE(urn,term_id,subject), FOREIGN KEY(urn) REFERENCES Student(urn) ON DELETE CASCADE, FOREIGN KEY(term_id) REFERENCES AcademicTerm(term_id) ON DELETE CASCADE)""",
+               """CREATE TABLE IF NOT EXISTS SemesterMarks(
+    mark_id SERIAL PRIMARY KEY,
+    urn TEXT NOT NULL REFERENCES Student(urn) ON DELETE CASCADE,
+    term_id INTEGER NOT NULL REFERENCES AcademicTerm(term_id) ON DELETE CASCADE,
+    semester INTEGER NOT NULL,
+    subject TEXT NOT NULL,
+    total DOUBLE PRECISION NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'Fail',
+    UNIQUE(urn, term_id, subject)
+)""",
                 """CREATE TABLE IF NOT EXISTS MentorSuggestions(suggestion_id INTEGER PRIMARY KEY AUTOINCREMENT, urn TEXT NOT NULL, semester INTEGER NOT NULL, suggestion TEXT NOT NULL, suggestion_date TEXT NOT NULL, FOREIGN KEY(urn) REFERENCES Student(urn) ON DELETE CASCADE)""",
                 """CREATE TABLE IF NOT EXISTS AwardsCertificates(achievement_id INTEGER PRIMARY KEY AUTOINCREMENT, urn TEXT NOT NULL, achievement_type TEXT, title TEXT, organization TEXT, year TEXT, FOREIGN KEY(urn) REFERENCES Student(urn) ON DELETE CASCADE)""",
                 """CREATE TABLE IF NOT EXISTS StudentParticipation(
@@ -993,16 +1012,76 @@ def student_attendance():
 
 
 
-@app.route("/student/marks",methods=["POST"])
+
+@app.route("/student/marks", methods=["POST"])
 @login_required("student")
 def student_marks():
+    con = None
+
     try:
-        sem=int(request.form["semester"]);subject=request.form["subject"].strip();v=validate_marks(request.form["ise"],request.form["mse"],request.form["ese"])
-        if sem not in range(1,9) or not subject or not student_has_semester(get_student_urn(), sem):raise ValueError("You are not assigned to that semester.")
-        con=db(); term=con.execute("""SELECT t.term_id FROM StudentAcademicAssignment sa JOIN Student s ON s.student_id=sa.student_id JOIN AcademicTerm t ON t.term_id=sa.term_id WHERE s.urn=? AND t.semester=?""",(get_student_urn(),sem)).fetchone()
-        if not term: raise ValueError("You are not assigned to that semester.")
-        con.execute("""INSERT INTO SemesterMarks(urn,term_id,semester,subject,ise,mse,ese) VALUES(?,?,?,?,?,?,?) ON CONFLICT(urn,term_id,subject) DO UPDATE SET ise=excluded.ise,mse=excluded.mse,ese=excluded.ese""",(get_student_urn(),term["term_id"],sem,subject,v[0],v[1],v[2]));con.commit();con.close();flash("Marks saved.","success")
-    except Exception as e:flash(str(e),"danger")
+        urn = get_student_urn()
+        sem = int(request.form.get("semester", ""))
+        subject = request.form.get("subject", "").strip()
+        total = float(request.form.get("total_marks", ""))
+
+        if sem not in range(1, 9):
+            raise ValueError("Enter a valid semester from 1 to 8.")
+
+        if not subject:
+            raise ValueError("Enter the subject name.")
+
+        if not student_has_semester(urn, sem):
+            raise ValueError("You are not assigned to that semester.")
+
+        # Assumes the total is out of 100 and passing marks are 40.
+        if not 0 <= total <= 100:
+            raise ValueError("Total marks must be between 0 and 100.")
+
+        status = "Pass" if total >= 40 else "Fail"
+
+        con = db()
+
+        term = con.execute("""
+            SELECT t.term_id
+            FROM StudentAcademicAssignment sa
+            JOIN Student s ON s.student_id = sa.student_id
+            JOIN AcademicTerm t ON t.term_id = sa.term_id
+            WHERE s.urn = ? AND t.semester = ?
+            ORDER BY t.term_id DESC
+            LIMIT 1
+        """, (urn, sem)).fetchone()
+
+        if not term:
+            raise ValueError("You are not assigned to that semester.")
+
+        # NOTE: This insert requires a compatible SemesterMarks table.
+        con.execute("""
+            INSERT INTO SemesterMarks
+                (urn, term_id, semester, subject, total, status)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(urn, term_id, subject)
+            DO UPDATE SET
+                total = excluded.total,
+                status = excluded.status
+        """, (urn, term["term_id"], sem, subject, total, status))
+
+        con.commit()
+        flash("Marks saved successfully.", "success")
+
+    except (ValueError, TypeError) as e:
+        if con:
+            con.rollback()
+        flash(str(e) or "Enter valid marks.", "danger")
+
+    except Exception:
+        if con:
+            con.rollback()
+        flash("Could not save marks. Check the SemesterMarks table structure.", "danger")
+
+    finally:
+        if con:
+            con.close()
+
     return redirect(url_for("student_dashboard"))
 
 @app.route("/student/achievement",methods=["POST"])
