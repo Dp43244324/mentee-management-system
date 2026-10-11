@@ -24,6 +24,14 @@ RESUME_UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads", "resumes")
 ALLOWED_RESUME_EXTENSIONS = {"pdf", "docx"}
 MAX_RESUME_SIZE = 5 * 1024 * 1024  # 5 MB
 
+
+def allowed_resume_file(filename):
+    return (
+        "." in filename
+        and filename.rsplit(".", 1)[1].lower() in ALLOWED_RESUME_EXTENSIONS
+    )
+
+
 DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 LOW_ATTENDANCE = 75
 
