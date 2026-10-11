@@ -506,6 +506,30 @@ def student_dashboard():
         a = history[0]
 
     ad = attendance_df(urn)
+    
+    con = db()
+    try:
+        career_profile = con.execute(
+            "SELECT * FROM StudentCareerProfile WHERE urn = ?",
+            (urn,)
+        ).fetchone()
+
+        participation_history = con.execute("""
+            SELECT event_name, event_date, event_result
+            FROM StudentParticipation
+            WHERE urn = ?
+            ORDER BY event_date DESC, participation_id DESC
+        """, (urn,)).fetchall()
+
+        missions = con.execute("""
+            SELECT mission_id, mission
+            FROM StudentMission
+            WHERE urn = ?
+            ORDER BY mission_id DESC
+        """, (urn,)).fetchall()
+    finally:
+        con.close()
+
     mk = marks_with_status(urn)
 
     con = db()
@@ -548,6 +572,9 @@ def student_dashboard():
     return render_template(
         "student_dashboard.html",
         s=s,
+        career_profile=career_profile,
+        participation_history=participation_history,
+        missions=missions,
         assignment=a,
         history=history,
         terms=get_terms(),
