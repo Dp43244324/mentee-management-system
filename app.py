@@ -671,6 +671,66 @@ def student_profile():
         con.close()
 
     return redirect(url_for("student_dashboard"))
+
+
+@app.route("/student/resume", methods=["POST"])
+@login_required("student")
+def upload_student_resume():
+    urn = get_student_urn()
+    uploaded_file = request.files.get("resume")
+
+    if not uploaded_file or not uploaded_file.filename:
+        flash("Please select a resume file.", "danger")
+        return redirect(url_for("student_dashboard"))
+
+    if not allowed_resume_file(uploaded_file.filename):
+        flash("Only PDF and DOCX resumes are allowed.", "danger")
+        return redirect(url_for("student_dashboard"))
+
+    uploaded_file.stream.seek(0, os.SEEK_END)
+    file_size = uploaded_file.stream.tell()
+    uploaded_file.stream.seek(0)
+
+    if file_size > MAX_RESUME_SIZE:
+        flash("Resume must be 5 MB or smaller.", "danger")
+        return redirect(url_for("student_dashboard"))
+
+    original_name = secure_filename(uploaded_file.filename)
+    if not original_name:
+        flash("Invalid filename.", "danger")
+        return redirect(url_for("student_dashboard"))
+
+    extension = original_name.rsplit(".", 1)[1].lower()
+    stored_name = f"{uuid.uuid4().hex}.{extension}"
+    file_path = os.path.join(RESUME_UPLOAD_FOLDER, stored_name)
+
+    con = db()
+    try:
+        uploaded_file.save(file_path)
+
+        con.execute("""
+            INSERT INTO StudentCareerProfile (urn, resume_filename, resume_path)
+            VALUES (?, ?, ?)
+            ON CONFLICT(urn) DO UPDATE SET
+                resume_filename=excluded.resume_filename,
+                resume_path=excluded.resume_path,
+                updated_at=CURRENT_TIMESTAMP
+        """, (urn, original_name, stored_name))
+
+        con.commit()
+        flash("Resume uploaded successfully.", "success")
+
+    except Exception:
+        con.rollback()
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        flash("Could not save your resume. Please try again.", "danger")
+
+    finally:
+        con.close()
+
+    return redirect(url_for("student_dashboard"))
+
     
 @app.route("/student/academic-assignment",methods=["POST"])
 @login_required("student")
