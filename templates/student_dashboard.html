@@ -529,36 +529,88 @@
   </div>
 </div>
 
+<!-- SEMESTER MARKS -->
+<div class="tab-pane fade" id="marks-pane" role="tabpanel" tabindex="0">
+  <div class="section-panel">
 
-    <!-- SEMESTER MARKS -->
-    <div class="tab-pane fade" id="marks-pane" role="tabpanel" tabindex="0">
-      <div class="section-panel">
-        <form method="post" action="{{url_for('student_marks')}}" class="inline-entry-form marks-entry-form">
-          <div class="entry-field"><label>Semester</label><input class="form-control" name="semester" placeholder="5" required></div>
-          <div class="entry-field subject-entry"><label>Subject</label><input class="form-control" name="subject" placeholder="ADS" required></div>
-          <div class="entry-field"><label>ISE (40)</label><input class="form-control" name="ise" placeholder="14" required></div>
-          <div class="entry-field"><label>MSE</label><input class="form-control" name="mse" placeholder="12" required></div>
-          <div class="entry-field"><label>ESE</label><input class="form-control" name="ese" placeholder="8" required></div>
-          <div class="entry-action"><button class="btn btn-primary">Save / Update</button></div>
-        </form>
+    <form method="post"
+          action="{{ url_for('student_marks') }}"
+          class="inline-entry-form marks-entry-form">
 
-        <div class="table-responsive dashboard-table-wrap">
-          <table class="table dashboard-table mb-0">
-            <thead><tr><th>Semester</th><th>Subject</th><th>ISE</th><th>MSE</th><th>ESE</th><th>Total</th><th>Status</th></tr></thead>
-            <tbody>
-            {% for r in marks %}
-              <tr>
-                <td>{{r.semester}}</td><td>{{r.subject}}</td><td>{{r.ise}}</td><td>{{r.mse}}</td><td>{{r.ese}}</td><td>{{r.total}}</td>
-                <td>{{r.status}}</td>
-              </tr>
-            {% else %}
-              <tr><td colspan="7" class="empty-row">No semester marks yet.</td></tr>
-            {% endfor %}
-            </tbody>
-          </table>
-        </div>
+      <div class="entry-field">
+        <label for="marks_semester">Semester</label>
+        <input type="number"
+               class="form-control"
+               id="marks_semester"
+               name="semester"
+               min="1"
+               max="8"
+               placeholder="Enter semester (1–8)"
+               required>
       </div>
+
+      <div class="entry-field subject-entry">
+        <label for="marks_subject">Subject</label>
+        <input type="text"
+               class="form-control"
+               id="marks_subject"
+               name="subject"
+               placeholder="Enter subject name"
+               required>
+      </div>
+
+      <div class="entry-field">
+        <label for="total_marks">Total Marks Obtained</label>
+        <input type="number"
+               class="form-control"
+               id="total_marks"
+               name="total_marks"
+               min="0"
+               max="100"
+               step="0.01"
+               placeholder="Enter total marks (out of 100)"
+               required>
+      </div>
+
+      <div class="entry-action">
+        <button type="submit" class="btn btn-primary">
+          Save / Update
+        </button>
+      </div>
+    </form>
+
+    <div class="table-responsive dashboard-table-wrap">
+      <table class="table dashboard-table mb-0">
+        <thead>
+          <tr>
+            <th>Semester</th>
+            <th>Subject</th>
+            <th>Total Marks Obtained</th>
+            <th>Result</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {% for r in marks %}
+          <tr>
+            <td>{{ r.semester }}</td>
+            <td>{{ r.subject }}</td>
+            <td>{{ r.total }}</td>
+            <td>{{ r.status }}</td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4" class="empty-row">
+              No semester marks yet.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
+
+  </div>
+</div>
   </div>
 </div>
 
