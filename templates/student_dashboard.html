@@ -416,6 +416,7 @@
           action="{{ url_for('student_attendance') }}"
           class="inline-entry-form">
 
+
 <div class="entry-field">
     <label for="semester">Semester (1–8)</label>
     <input
@@ -431,41 +432,61 @@
     >
 </div>
 
-
-      <div class="entry-field">
-        <label>Starting Month</label>
-        <select class="form-control" name="start_month" required>
-          <option value="">Select month</option>
-          {% for month in [
+<div class="entry-field">
+    <label for="start_month">Starting Month</label>
+    <select
+        class="form-control"
+        name="start_month"
+        id="start_month"
+        required
+    >
+        <option value="">Select starting month</option>
+        {% for month_num, month_name in [
             (1, 'January'), (2, 'February'), (3, 'March'),
             (4, 'April'), (5, 'May'), (6, 'June'),
             (7, 'July'), (8, 'August'), (9, 'September'),
             (10, 'October'), (11, 'November'), (12, 'December')
-          ] %}
-            <option value="{{ month[0] }}">{{ month[1] }}</option>
-          {% endfor %}
-        </select>
-      </div>
+        ] %}
+            <option value="{{ month_num }}">{{ month_name }}</option>
+        {% endfor %}
+    </select>
+</div>
 
-      <div class="entry-field">
-        <label>Monthly Attendance (%)</label>
-        <input class="form-control"
-               type="number"
-               name="monthly_percentage"
-               min="0" max="100" step="0.01"
-               placeholder="80"
-               required>
-      </div>
+<div class="entry-field">
+    <label for="end_month">Ending Month</label>
+    <select
+        class="form-control"
+        name="end_month"
+        id="end_month"
+        required
+    >
+        <option value="">Select ending month</option>
+        {% for month_num, month_name in [
+            (1, 'January'), (2, 'February'), (3, 'March'),
+            (4, 'April'), (5, 'May'), (6, 'June'),
+            (7, 'July'), (8, 'August'), (9, 'September'),
+            (10, 'October'), (11, 'November'), (12, 'December')
+        ] %}
+            <option value="{{ month_num }}">{{ month_name }}</option>
+        {% endfor %}
+    </select>
+</div>
 
-      <div class="entry-field">
-        <label>Cumulative Attendance (%)</label>
-        <input class="form-control"
-               type="number"
-               name="cumulative_percentage"
-               min="0" max="100" step="0.01"
-               placeholder="82"
-               required>
-      </div>
+<div class="entry-field">
+    <label for="monthly_percentage">Attendance Percentage (%)</label>
+    <input
+        type="number"
+        class="form-control"
+        name="monthly_percentage"
+        id="monthly_percentage"
+        min="0"
+        max="100"
+        step="0.01"
+        placeholder="Enter attendance percentage"
+        required
+    >
+</div>
+
 
       <div class="entry-action">
         <button type="submit" class="btn btn-primary">
