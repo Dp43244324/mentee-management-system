@@ -14,6 +14,9 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image
 from reportlab.lib.styles import getSampleStyleSheet
+from werkzeug.utils import secure_filename
+from flask import send_from_directory
+import uuid
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
