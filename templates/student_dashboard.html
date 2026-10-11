@@ -196,6 +196,32 @@
 
   </form>
 
+<!-- RESUME UPLOAD -->
+<div class="section-panel mt-3">
+    <h4>My Resume</h4>
+    <p class="text-muted">
+        Upload your resume in PDF or DOCX format (maximum 5 MB).
+    </p>
+
+    <form method="post"
+          action="{{ url_for('upload_student_resume') }}"
+          enctype="multipart/form-data">
+        <div class="mb-3">
+            <label for="resume" class="form-label">Choose Resume</label>
+            <input type="file"
+                   id="resume"
+                   name="resume"
+                   class="form-control"
+                   accept=".pdf,.docx"
+                   required>
+        </div>
+
+        <button type="submit" class="btn btn-primary">
+            Upload Resume
+        </button>
+    </form>
+</div>
+
 </div>
 
    
