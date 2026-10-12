@@ -530,7 +530,8 @@ function filterMonthlyAttendance(below75 = false) {
     const percentage = Number(row.dataset.percentage);
 
     const matchesMonthRange = rowStart === start && rowEnd === end;
-    const matchesStudent = row.dataset.search.includes(search);
+   const matchesStudent =
+    search === "" || row.dataset.search.includes(search);
     const matchesPercentage = !below75 || percentage < 75;
 
    row.hidden = !(
