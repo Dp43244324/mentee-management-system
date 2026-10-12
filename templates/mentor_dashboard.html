@@ -523,57 +523,42 @@ function filterMonthlyAttendance(below75 = false) {
     document.querySelectorAll(
         "#attendanceTable tbody tr[data-search]"
     ).forEach(row => {
+        const studentText = (row.dataset.search || "").toLowerCase();
         const rowStart = Number(row.dataset.startMonth);
         const rowEnd = Number(row.dataset.endMonth);
         const percentage = Number(row.dataset.percentage);
-        const studentText = (row.dataset.search || "").toLowerCase();
 
         const matchesStudent =
-            search === "" || studentText.includes(search);
+            !search || studentText.includes(search);
 
-        const matchesMonthRange =
-            rowStart === start && rowEnd === end;
+        // Searching for a student shows all their periods.
+        // Otherwise, use the selected month range.
+        const matchesPeriod = search
+            ? true
+            : (rowStart === start && rowEnd === end);
 
         const matchesPercentage =
             !below75 || percentage < 75;
 
         row.hidden = !(
             matchesStudent &&
-            matchesMonthRange &&
+            matchesPeriod &&
             matchesPercentage
         );
     });
 }
 
-  document.querySelectorAll(
-    "#attendanceTable tbody tr[data-search]"
-  ).forEach(row => {
-    const rowStart = Number(row.dataset.startMonth);
-    const rowEnd = Number(row.dataset.endMonth);
-    const percentage = Number(row.dataset.percentage);
-
-    const matchesMonthRange = rowStart === start && rowEnd === end;
-   const matchesStudent =
-    search === "" || row.dataset.search.includes(search);
-    const matchesPercentage = !below75 || percentage < 75;
-
-   row.hidden = !(
-  matchesMonthRange && matchesStudent && matchesPercentage
-);
-  });
-}
 
 function resetMonthlyAttendanceFilters() {
-  document.getElementById("attendanceStartMonth").value = "1";
-  document.getElementById("attendanceEndMonth").value = "12";
-  document.getElementById("attendanceSearch").value = "";
+    document.getElementById("attendanceStartMonth").value = "1";
+    document.getElementById("attendanceEndMonth").value = "12";
+    document.getElementById("attendanceSearch").value = "";
 
-  // Show every monthly attendance record
-  document.querySelectorAll(
-    "#attendanceTable tbody tr[data-search]"
-  ).forEach(row => {
-    row.hidden = false;
-  });
+    document.querySelectorAll(
+        "#attendanceTable tbody tr[data-search]"
+    ).forEach(row => {
+        row.hidden = false;
+    });
 }
 
 document.addEventListener("DOMContentLoaded", function () {
