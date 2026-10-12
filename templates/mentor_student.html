@@ -2,280 +2,244 @@
 {% extends "base.html" %}
 {% block content %}
 
-<a href="{{ url_for('mentor_dashboard') }}">← Back to students</a>
+<div class="container-fluid py-3">
+  <a class="btn btn-outline-secondary mb-3"
+     href="{{ url_for('mentor_dashboard') }}">
+    ← Back to students
+  </a>
 
-<div class="mt-3 mb-4">
+  <div class="mb-4">
     <h2>{{ s.name }}</h2>
-    <p class="small-muted">
-        URN: {{ s.urn }}
-        {% if assignment %}
+    <p class="text-muted">
+      URN: {{ s.urn }}
+      {% if assignment %}
         · {{ assignment.academic_year }}
         · Semester {{ assignment.semester }}
         · Batch {{ assignment.batch }}
         · Division {{ assignment.division }}
-        {% endif %}
+      {% endif %}
     </p>
-</div>
+  </div>
 
-<ul class="nav nav-tabs mb-4" id="menteeTabs" role="tablist">
+  <ul class="nav nav-tabs" id="menteeDetailTabs" role="tablist">
     <li class="nav-item" role="presentation">
-        <button class="nav-link active" data-bs-toggle="tab"
-                data-bs-target="#menteeProfile" type="button" role="tab">
-            Mentee
-        </button>
+      <button class="nav-link active" data-bs-toggle="tab"
+              data-bs-target="#mentee-profile" type="button" role="tab">
+        Mentee Profile
+      </button>
     </li>
     <li class="nav-item" role="presentation">
-        <button class="nav-link" data-bs-toggle="tab"
-                data-bs-target="#attendanceTab" type="button" role="tab">
-            Attendance
-        </button>
+      <button class="nav-link" data-bs-toggle="tab"
+              data-bs-target="#mentee-attendance" type="button" role="tab">
+        Attendance
+      </button>
     </li>
     <li class="nav-item" role="presentation">
-        <button class="nav-link" data-bs-toggle="tab"
-                data-bs-target="#marksTab" type="button" role="tab">
-            Semester Marks
-        </button>
+      <button class="nav-link" data-bs-toggle="tab"
+              data-bs-target="#mentee-marks" type="button" role="tab">
+        Semester Marks
+      </button>
     </li>
-</ul>
+  </ul>
 
-<div class="tab-content">
+  <div class="tab-content border border-top-0 rounded-bottom p-3 p-md-4">
 
-    <!-- MENTEE PROFILE TAB -->
-    <div class="tab-pane fade show active" id="menteeProfile" role="tabpanel">
+    <!-- MENTEE PROFILE -->
+    <div class="tab-pane fade show active" id="mentee-profile" role="tabpanel">
+      <h4 class="mb-3">Basic Details</h4>
 
-        <div class="card p-4 mb-4">
-            <h4>Mentee Profile</h4>
-            <div class="row g-3">
-                <div class="col-md-3">
-                    <b>Class</b><br>
-                    {{ assignment.class_name or '-' if assignment else '-' }}
-                </div>
-                <div class="col-md-3">
-                    <b>Division</b><br>
-                    {{ assignment.division or '-' if assignment else '-' }}
-                </div>
-                <div class="col-md-3">
-                    <b>Roll No.</b><br>
-                    {{ assignment.roll_no or '-' if assignment else '-' }}
-                </div>
-                <div class="col-md-3">
-                    <b>Mobile</b><br>
-                    {{ s.mobile or '-' }}
-                </div>
-                <div class="col-md-6">
-                    <b>Parent</b><br>
-                    {{ s.parent_name or '-' }} · {{ s.parent_mobile or '-' }}
-                </div>
-                <div class="col-md-6">
-                    <b>Address</b><br>
-                    {{ s.address or '-' }}
-                </div>
-            </div>
+      <div class="row g-3">
+        <div class="col-md-3"><strong>URN</strong><div>{{ s.urn or '-' }}</div></div>
+        <div class="col-md-3"><strong>Name</strong><div>{{ s.name or '-' }}</div></div>
+        <div class="col-md-3"><strong>Class</strong><div>{{ assignment.class_name if assignment else '-' }}</div></div>
+        <div class="col-md-3"><strong>Division</strong><div>{{ assignment.division if assignment else '-' }}</div></div>
+        <div class="col-md-3"><strong>Roll No</strong><div>{{ assignment.roll_no if assignment else '-' }}</div></div>
+        <div class="col-md-3"><strong>Mobile</strong><div>{{ s.mobile or '-' }}</div></div>
+        <div class="col-md-3"><strong>Parent Name</strong><div>{{ s.parent_name or '-' }}</div></div>
+        <div class="col-md-3"><strong>Parent Mobile</strong><div>{{ s.parent_mobile or '-' }}</div></div>
+        <div class="col-md-6"><strong>Address</strong><div>{{ s.address or '-' }}</div></div>
+      </div>
+
+      <hr>
+      <h4>Career Profile</h4>
+
+      {% if career_profile %}
+        <div class="row g-3">
+          <div class="col-md-6">
+            <strong>Hobbies</strong>
+            <p>{{ career_profile['hobbies']|default('-', true) }}</p>
+          </div>
+          <div class="col-md-6">
+            <strong>Awards</strong>
+            <p>{{ career_profile['awards']|default('-', true) }}</p>
+          </div>
+          <div class="col-md-6">
+            <strong>Certifications</strong>
+            <p>{{ career_profile['certifications']|default('-', true) }}</p>
+          </div>
+          <div class="col-md-6">
+            <strong>Vision</strong>
+            <p>{{ career_profile['vision']|default('-', true) }}</p>
+          </div>
+          <div class="col-md-6">
+            <strong>Mission</strong>
+            <p>{{ career_profile['mission']|default('-', true) }}</p>
+          </div>
+          <div class="col-md-6">
+            <strong>Short-Term Goal</strong>
+            <p>{{ career_profile['short_term_goal']|default('-', true) }}</p>
+          </div>
+          <div class="col-md-6">
+            <strong>Short-Term Action Plan</strong>
+            <p>{{ career_profile['short_term_action_plan']|default('-', true) }}</p>
+          </div>
+          <div class="col-md-6">
+            <strong>Long-Term Goal</strong>
+            <p>{{ career_profile['long_term_goal']|default('-', true) }}</p>
+          </div>
+          <div class="col-md-6">
+            <strong>Long-Term Action Plan</strong>
+            <p>{{ career_profile['long_term_action_plan']|default('-', true) }}</p>
+          </div>
+          <div class="col-md-6">
+            <strong>GitHub</strong><br>
+            {% if career_profile['github_link'] %}
+              <a href="{{ career_profile['github_link'] }}" target="_blank" rel="noopener noreferrer">Open GitHub</a>
+            {% else %}-{% endif %}
+          </div>
+          <div class="col-md-6">
+            <strong>HackerRank</strong><br>
+            {% if career_profile['hackerrank_link'] %}
+              <a href="{{ career_profile['hackerrank_link'] }}" target="_blank" rel="noopener noreferrer">Open HackerRank</a>
+            {% else %}-{% endif %}
+          </div>
         </div>
+      {% else %}
+        <p class="text-muted">No career profile has been submitted.</p>
+      {% endif %}
 
-        <div class="card p-4 mb-4">
-            <h4>Career Profile</h4>
-
-            {% if career_profile %}
-                <p><b>Hobbies:</b>
-                    {{ career_profile.hobbies or '-' }}
-                </p>
-                <p><b>HackerRank:</b>
-                    {% if career_profile.hackerrank_url %}
-                        <a href="{{ career_profile.hackerrank_url }}"
-                           target="_blank" rel="noopener noreferrer">
-                            Open HackerRank
-                        </a>
-                    {% else %}-{% endif %}
-                </p>
-                <p><b>GitHub:</b>
-                    {% if career_profile.github_url %}
-                        <a href="{{ career_profile.github_url }}"
-                           target="_blank" rel="noopener noreferrer">
-                            Open GitHub
-                        </a>
-                    {% else %}-{% endif %}
-                </p>
-                <p><b>Vision:</b> {{ career_profile.vision or '-' }}</p>
-                <p><b>Mission:</b> {{ career_profile.mission or '-' }}</p>
-                <p><b>Short-term goal:</b>
-                    {{ career_profile.short_term_goal or '-' }}
-                </p>
-                <p><b>Short-term action plan:</b>
-                    {{ career_profile.short_term_action_plan or '-' }}
-                </p>
-                <p><b>Long-term goal:</b>
-                    {{ career_profile.long_term_goal or '-' }}
-                </p>
-                <p><b>Long-term action plan:</b>
-                    {{ career_profile.long_term_action_plan or '-' }}
-                </p>
+      <hr>
+      <h4>Participation History</h4>
+      <div class="table-responsive">
+        <table class="table table-bordered table-striped">
+          <thead>
+            <tr><th>Event Name</th><th>Date</th><th>Result</th></tr>
+          </thead>
+          <tbody>
+            {% for p in participation_history %}
+              <tr>
+                <td>{{ p.event_name or '-' }}</td>
+                <td>{{ p.event_date or '-' }}</td>
+                <td>{{ p.event_result or '-' }}</td>
+              </tr>
             {% else %}
-                <p>No career profile has been added yet.</p>
-            {% endif %}
-        </div>
-
-        <div class="card p-4 mb-4">
-            <h4>Participation History</h4>
-            <div class="table-responsive">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Event</th>
-                            <th>Date</th>
-                            <th>Result</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for p in participation_history %}
-                        <tr>
-                            <td>{{ p.event_name }}</td>
-                            <td>{{ p.event_date or '-' }}</td>
-                            <td>{{ p.event_result or '-' }}</td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="3">No participation records.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <div class="card p-4 mb-4">
-            <h4>Achievements and Certifications</h4>
-            {% for a in achievements %}
-                <p>
-                    <b>{{ a.title }}</b>
-                    — {{ a.organization or '-' }}
-                    ({{ a.year or '-' }})
-                </p>
-            {% else %}
-                <p>No achievements or certifications recorded.</p>
+              <tr><td colspan="3" class="text-center">No participation records.</td></tr>
             {% endfor %}
-        </div>
+          </tbody>
+        </table>
+      </div>
 
-        <div class="card p-4 mb-4">
-            <h4>Student Resume</h4>
-            <p>Open or download the resume uploaded by this student.</p>
-            <a class="btn btn-primary"
-               href="{{ url_for('download_student_resume', urn=s.urn) }}">
-                Download Resume
-            </a>
-        </div>
+      <hr>
+      <h4>Achievements</h4>
+      {% for a in achievements %}
+        <p><strong>{{ a.title }}</strong> — {{ a.organization }} ({{ a.year }})</p>
+      {% else %}
+        <p class="text-muted">No achievements recorded.</p>
+      {% endfor %}
 
-        <div class="card p-4 mb-4">
-            <h4>Mentor Suggestion</h4>
-            <form method="post"
-                  action="{{ url_for('mentor_suggestion', urn=s.urn) }}">
-                <textarea class="form-control mb-2" name="suggestion"
-                          rows="4" required
-                          placeholder="Suggestion / action plan for this semester"></textarea>
-                <button class="btn btn-primary">Save suggestion</button>
-            </form>
-        </div>
+      <hr>
+      <h4>Resume</h4>
+      <a class="btn btn-primary"
+         href="{{ url_for('download_student_resume', urn=s.urn) }}">
+        Download Resume
+      </a>
 
+      <hr>
+      <h4>Mentor Suggestions</h4>
+      {% for suggestion in suggestions %}
+        <div class="border rounded p-3 mb-2">
+          {{ suggestion.suggestion }}
+        </div>
+      {% else %}
+        <p class="text-muted">No mentor suggestions recorded.</p>
+      {% endfor %}
     </div>
 
-    <!-- ATTENDANCE TAB -->
-    <div class="tab-pane fade" id="attendanceTab" role="tabpanel">
-        <div class="card p-4">
-            <h4>Monthly Attendance</h4>
-            <div class="table-responsive">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Semester</th>
-                            <th>Start Month</th>
-                            <th>End Month</th>
-                            <th>Monthly Percentage</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for a in monthly_attendance %}
-                        <tr>
-                            <td>{{ a.semester }}</td>
-                            <td>{{ a.start_month }}</td>
-                            <td>{{ a.end_month }}</td>
-                            <td>{{ a.monthly_percentage }}%</td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="4">
-                                No monthly attendance submitted by this student.
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <div class="card p-4 mt-4">
-            <h4>Lecture Attendance</h4>
-            <div class="table-responsive">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Semester</th>
-                            <th>Total Lectures</th>
-                            <th>Present</th>
-                            <th>Percentage</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for a in attendance %}
-                        <tr>
-                            <td>{{ a.semester }}</td>
-                            <td>{{ a.total_lectures }}</td>
-                            <td>{{ a.present }}</td>
-                            <td>{{ a.percentage }}%</td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="4">No lecture attendance records.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+    <!-- STUDENT-SUBMITTED MONTHLY ATTENDANCE -->
+    <div class="tab-pane fade" id="mentee-attendance" role="tabpanel">
+      <h4 class="mb-3">Monthly Attendance</h4>
+      <div class="table-responsive">
+        <table class="table table-bordered table-striped align-middle">
+          <thead>
+            <tr>
+              <th>Semester</th>
+              <th>Start Month</th>
+              <th>End Month</th>
+              <th>Monthly Attendance Percentage</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in monthly_attendance %}
+              <tr>
+                <td>{{ r.semester }}</td>
+                <td>{{ r.start_month }}</td>
+                <td>{{ r.end_month }}</td>
+                <td>{{ r.monthly_percentage }}%</td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="4" class="text-center">
+                  No monthly attendance submitted by this student.
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
 
-    <!-- SEMESTER MARKS TAB -->
-    <div class="tab-pane fade" id="marksTab" role="tabpanel">
-        <div class="card p-4">
-            <h4>Semester Marks</h4>
-            <div class="table-responsive">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Semester</th>
-                            <th>Subject</th>
-                            <th>Total Marks Obtained</th>
-                            <th>Result Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for m in marks %}
-                        <tr>
-                            <td>{{ m.semester }}</td>
-                            <td>{{ m.subject }}</td>
-                            <td>{{ m.total }}</td>
-                            <td>{{ m.status }}</td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="4">No semester marks recorded.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+    <!-- STUDENT-ENTERED SEMESTER MARKS -->
+    <div class="tab-pane fade" id="mentee-marks" role="tabpanel">
+      <h4 class="mb-3">Semester Marks</h4>
+      <div class="table-responsive">
+        <table class="table table-bordered table-striped align-middle">
+          <thead>
+            <tr>
+              <th>Semester</th>
+              <th>Subject</th>
+              <th>Total Marks Obtained</th>
+              <th>Result Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in marks %}
+              <tr>
+                <td>{{ r.semester }}</td>
+                <td>{{ r.subject }}</td>
+                <td>{{ r.total }}</td>
+                <td>
+                  {% if r.status == 'Pass' %}
+                    <span class="badge bg-success">Pass</span>
+                  {% elif r.status == 'Fail' %}
+                    <span class="badge bg-danger">Fail</span>
+                  {% else %}
+                    {{ r.status or '-' }}
+                  {% endif %}
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="4" class="text-center">
+                  No semester marks submitted by this student.
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
 
+  </div>
 </div>
 
 {% endblock %}
