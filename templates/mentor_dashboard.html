@@ -437,8 +437,9 @@ function selectStudent(urn) {
   setText("p_long_goal", profile.long_term_goal);
   setText("p_long_plan", profile.long_term_action_plan);
 
-  // Mission is not in the confirmed career-profile schema yet
-  setText("p_mission", "");
+// Display the selected student's missions
+const missions = ({{ missions_by_urn|tojson }})[selectedUrn] || [];
+setText("p_mission", missions.length ? missions.join(", ") : "");
 
   // Resume download link
   const resumeEl = document.getElementById("p_resume");
