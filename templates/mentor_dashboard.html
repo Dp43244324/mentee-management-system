@@ -507,20 +507,43 @@ function filterAttendanceLow(){
 }
 
 function filterMonthlyAttendance(below75 = false) {
-  const startEl = document.getElementById("attendanceStartMonth");
-  const endEl = document.getElementById("attendanceEndMonth");
-  const searchEl = document.getElementById("attendanceSearch");
+    const startEl = document.getElementById("attendanceStartMonth");
+    const endEl = document.getElementById("attendanceEndMonth");
+    const searchEl = document.getElementById("attendanceSearch");
 
-  if (!startEl || !endEl || !searchEl) return;
+    const start = Number(startEl.value);
+    const end = Number(endEl.value);
+    const search = searchEl.value.trim().toLowerCase();
 
-  const start = Number(startEl.value);
-  const end = Number(endEl.value);
-  const search = searchEl.value.trim().toLowerCase();
+    if (start > end) {
+        alert("Start month must be before or equal to end month.");
+        return;
+    }
 
-  if (start > end) {
-    alert("Start month must be before or equal to end month.");
-    return;
-  }
+    document.querySelectorAll(
+        "#attendanceTable tbody tr[data-search]"
+    ).forEach(row => {
+        const rowStart = Number(row.dataset.startMonth);
+        const rowEnd = Number(row.dataset.endMonth);
+        const percentage = Number(row.dataset.percentage);
+        const studentText = (row.dataset.search || "").toLowerCase();
+
+        const matchesStudent =
+            search === "" || studentText.includes(search);
+
+        const matchesMonthRange =
+            rowStart === start && rowEnd === end;
+
+        const matchesPercentage =
+            !below75 || percentage < 75;
+
+        row.hidden = !(
+            matchesStudent &&
+            matchesMonthRange &&
+            matchesPercentage
+        );
+    });
+}
 
   document.querySelectorAll(
     "#attendanceTable tbody tr[data-search]"
