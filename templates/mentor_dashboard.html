@@ -57,7 +57,12 @@
           {% for st in students %}
             <tr data-urn="{{st.urn|e}}" data-search="{{(st.urn|string + ' ' + (st.name or '') + ' ' + (st.roll_no or '')).lower()|e}}">
               <td>{{st.urn}}</td><td>{{st.name}}</td><td>{{st.batch}}</td><td>{{st.class_name or ''}}</td><td>{{st.division or ''}}</td><td>{{st.roll_no or ''}}</td>
-              <td><button class="btn btn-sm btn-primary" onclick="selectStudent('{{st.urn|e}}')">Open</button></td>
+              <td>
+  <a class="btn btn-sm btn-primary"
+     href="{{ url_for('mentor_student', urn=st.urn) }}">
+    Open
+  </a>
+</td>
             </tr>
           {% else %}
             <tr><td colspan="7" class="text-center">No students assigned to this batch.</td></tr>
