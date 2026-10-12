@@ -1225,15 +1225,62 @@ def mentor_delete_student(urn):
         con.close()
     return redirect(url_for("mentor_dashboard"))
 
+
 @app.route("/mentor/student/<urn>")
 @login_required("mentor")
 def mentor_student(urn):
-    if not mentor_batch_ok(urn):abort(403)
-    ma=mentor_scope();s=student_row(urn)
-    assignment=assignment_for_student(urn,ma["term_id"])
-    ad=attendance_df(urn,term_id=ma["term_id"]);mk=marks_with_status(urn,term_id=ma["term_id"])
-    return render_template("mentor_student.html",s=s,assignment=assignment,attendance=ad.to_dict("records"),marks=mk.to_dict("records"),achievements=get_achievements(urn),suggestions=get_suggestions(urn))
+    if not mentor_batch_ok(urn):
+        abort(403)
 
+    ma = mentor_scope()
+    s = student_row(urn)
+    assignment = assignment_for_student(urn, ma["term_id"])
+
+    ad = attendance_df(urn, term_id=ma["term_id"])
+    mk = marks_with_status(urn)
+
+    con = db()
+    try:
+        career_profile = con.execute("""
+            SELECT *
+            FROM StudentCareerProfile
+            WHERE urn = ?
+        """, (urn,)).fetchone()
+
+        participation_history = con.execute("""
+            SELECT event_name, event_date, event_result
+            FROM StudentParticipation
+            WHERE urn = ?
+            ORDER BY event_date DESC
+        """, (urn,)).fetchall()
+
+        monthly_attendance = con.execute("""
+            SELECT
+                t.semester,
+                a.start_month,
+                a.end_month,
+                a.monthly_percentage
+            FROM StudentMonthlyAttendance a
+            JOIN AcademicTerm t ON t.term_id = a.term_id
+            WHERE a.urn = ?
+            ORDER BY t.semester, a.start_month
+        """, (urn,)).fetchall()
+
+    finally:
+        con.close()
+
+    return render_template(
+        "mentor_student.html",
+        s=s,
+        assignment=assignment,
+        attendance=ad.to_dict("records"),
+        marks=mk.to_dict("records"),
+        achievements=get_achievements(urn),
+        suggestions=get_suggestions(urn),
+        career_profile=career_profile,
+        participation_history=participation_history,
+        monthly_attendance=monthly_attendance
+    )
 
 @app.route("/mentor/student/<urn>/resume")
 @login_required("mentor")
