@@ -795,10 +795,24 @@ def save_student_career_profile():
         "long_term_goal",
         "long_term_action_plan",
     )
-    values = {
-        field: request.form.get(field, "").strip()
-        for field in fields
-    }
+    
+    con = db()
+    try:
+        existing = con.execute(
+            "SELECT * FROM StudentCareerProfile WHERE urn = ?",
+            (urn,)
+        ).fetchone()
+
+        values = {}
+        for field in fields:
+            if field in request.form:
+                values[field] = request.form.get(field, "").strip()
+            else:
+                values[field] = (
+                    existing[field] or ""
+                    if existing else ""
+                )
+
 
     for field in ("hackerrank_url", "github_url"):
         url = values[field]
