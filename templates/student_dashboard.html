@@ -383,11 +383,27 @@
         Upload your resume in PDF or DOCX format (maximum 5 MB).
     </p>
 
+    {% if career_profile
+          and career_profile.resume_filename
+          and career_profile.resume_path %}
+        <div class="alert alert-success">
+            <strong>Current resume:</strong>
+            {{ career_profile.resume_filename }}
+            <p class="mb-0 mt-2">
+                Upload a new file below to replace your current resume.
+            </p>
+        </div>
+    {% else %}
+        <p class="text-muted">No resume uploaded yet.</p>
+    {% endif %}
+
     <form method="post"
           action="{{ url_for('upload_student_resume') }}"
           enctype="multipart/form-data">
         <div class="mb-3">
-            <label for="resume" class="form-label">Choose Resume</label>
+            <label for="resume" class="form-label">
+                Choose Resume
+            </label>
             <input type="file"
                    id="resume"
                    name="resume"
@@ -397,14 +413,16 @@
         </div>
 
         <button type="submit" class="btn btn-primary">
-            Upload Resume
+            {% if career_profile and career_profile.resume_filename %}
+                Replace Resume
+            {% else %}
+                Upload Resume
+            {% endif %}
         </button>
     </form>
 </div>
 
-
 </div>
-
    
 <!-- ATTENDANCE -->
 <div class="tab-pane fade" id="attendance-pane" role="tabpanel" tabindex="0">
