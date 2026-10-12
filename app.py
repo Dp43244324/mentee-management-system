@@ -1169,6 +1169,7 @@ def make_code(prefix):
     return prefix + "-" + secrets.token_hex(4).upper()
 
 
+
 @app.route("/mentor")
 @login_required("mentor")
 def mentor_dashboard():
@@ -1194,6 +1195,7 @@ def mentor_dashboard():
 
         career_profiles = {}
         participation_by_urn = {}
+        monthly_attendance = []
 
         if student_urns:
             placeholders = ",".join("?" for _ in student_urns)
@@ -1228,6 +1230,27 @@ def mentor_dashboard():
                 urn = str(row["urn"])
                 participation_by_urn.setdefault(urn, []).append(dict(row))
 
+            monthly_rows = con.execute(
+                f"""
+                SELECT sma.urn, s.name, sa.batch, t.semester,
+                       sma.start_month, sma.end_month,
+                       sma.monthly_percentage
+                FROM StudentMonthlyAttendance sma
+                JOIN Student s ON s.urn = sma.urn
+                JOIN AcademicTerm t ON t.term_id = sma.term_id
+                JOIN StudentAcademicAssignment sa
+                  ON sa.student_id = s.student_id
+                 AND sa.term_id = sma.term_id
+                WHERE sma.urn IN ({placeholders})
+                  AND sa.batch = ?
+                ORDER BY s.name, t.semester,
+                         sma.start_month, sma.end_month
+                """,
+                student_urns + [batch],
+            ).fetchall()
+
+            monthly_attendance = [dict(row) for row in monthly_rows]
+
     finally:
         con.close()
 
@@ -1241,6 +1264,7 @@ def mentor_dashboard():
         students=student_list,
         career_profiles=career_profiles,
         participation_by_urn=participation_by_urn,
+        monthly_attendance=monthly_attendance,
         attendance=ad.to_dict("records"),
         marks=mk.to_dict("records"),
         low_count=len(low["urn"].unique()) if not low.empty else 0,
