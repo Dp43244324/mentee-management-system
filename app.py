@@ -1601,7 +1601,45 @@ def build_individual_excel(urn, ma):
 def build_individual_pdf(urn, ma):
     df = dataframe_for_report(ma["term_id"], ma["batch"])
     student = df[df["urn"].astype(str) == str(urn)]
-    ad = attendance_df(urn=urn, term_id=ma["term_id"])
+    con = db()
+    try:
+        monthly_rows = con.execute("""
+            SELECT
+                sma.start_month,
+                sma.end_month,
+                sma.monthly_percentage,
+                sma.cumulative_percentage,
+                t.semester
+            FROM StudentMonthlyAttendance sma
+            JOIN AcademicTerm t
+              ON t.term_id = sma.term_id
+            WHERE sma.urn = ?
+              AND sma.term_id = ?
+            ORDER BY
+                sma.end_month DESC,
+                sma.start_month DESC
+        """, (urn, ma["term_id"])).fetchall()
+    finally:
+        con.close()
+
+    # Keep only the latest submitted period for this semester.
+    latest_attendance = monthly_rows[0] if monthly_rows else None
+
+    month_names = [
+        "", "January", "February", "March", "April",
+        "May", "June", "July", "August", "September",
+        "October", "November", "December"
+    ]
+
+    if latest_attendance:
+        start_month = latest_attendance["start_month"]
+        end_month = latest_attendance["end_month"]
+
+        attendance_period = month_names[start_month]
+        if start_month != end_month:
+            attendance_period += " – " + month_names[end_month]
+
+        attendance_percentage = latest_attendance["monthly_percentage"]
     mk = marks_with_status(urn=urn, term_id=ma["term_id"])
 
     out = io.BytesIO()
@@ -1669,49 +1707,62 @@ def build_individual_pdf(urn, ma):
     story.append(Spacer(1, 22))
 
     # -----------------------------
-    # Attendance
+    # Latest Submitted Attendance
     # -----------------------------
-    story.append(Paragraph("Attendance", styles["Heading2"]))
+    story.append(
+        Paragraph("Latest Submitted Attendance", styles["Heading2"])
+    )
     story.append(Spacer(1, 8))
 
-    if ad.empty:
-        story.append(Paragraph(
-            "No attendance data available.",
-            styles["Normal"]
-        ))
+    if not latest_attendance:
+        story.append(
+            Paragraph(
+                "No monthly attendance submitted by the student.",
+                styles["Normal"]
+            )
+        )
     else:
         attendance_data = [
-            ["Semester", "Total Lectures", "Present", "Absent", "%"]
+            ["Semester", "Latest Month / Period", "Attendance"],
+            [
+                latest_attendance["semester"],
+                attendance_period,
+                f"{attendance_percentage:.2f}%"
+            ]
         ]
 
-        for r in ad.itertuples():
-            attendance_data.append([
-                r.semester,
-                r.total_lectures,
-                r.present,
-                r.absent,
-                r.percentage
-            ])
+        attendance_table = Table(
+            attendance_data,
+            colWidths=[100, 230, 120],
+            repeatRows=1
+        )
 
-        t = Table(attendance_data, repeatRows=1)
-        t.setStyle(TableStyle([
+        attendance_table.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
             ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
-            ("FONTSIZE", (0, 0), (-1, -1), 9),
             ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 10),
             ("ALIGN", (0, 0), (-1, -1), "CENTER"),
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("TOPPADDING", (0, 0), (-1, -1), 7),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
         ]))
-        story.append(t)
 
-        # Attendance graph
+        story.append(attendance_table)
+
+        # Graph for the latest submitted period
         fig, ax = plt.subplots(figsize=(7.5, 3.8))
-        ax.plot(ad["semester"], ad["percentage"], marker="o")
-        ax.set_title("Attendance by Semester")
-        ax.set_xlabel("Semester")
-        ax.set_ylabel("Attendance %")
+
+        ax.bar(
+            [attendance_period],
+            [attendance_percentage]
+        )
+
+        ax.set_title("Latest Submitted Attendance")
+        ax.set_ylabel("Attendance (%)")
         ax.set_ylim(0, 100)
-        ax.grid(True, alpha=0.3)
+        ax.grid(axis="y", alpha=0.3)
+
         fig.tight_layout()
 
         chart_buf = io.BytesIO()
@@ -1722,10 +1773,13 @@ def build_individual_pdf(urn, ma):
             bbox_inches="tight"
         )
         plt.close(fig)
+
         chart_buf.seek(0)
 
         story.append(Spacer(1, 12))
-        story.append(Image(chart_buf, width=500, height=260))
+        story.append(
+            Image(chart_buf, width=450, height=230)
+        )
 
     story.append(Spacer(1, 22))
 
