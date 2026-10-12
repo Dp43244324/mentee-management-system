@@ -241,48 +241,70 @@
   </div>
 </div>
 
-    <!-- MARKS -->
-    <div class="tab-pane fade" id="marks-pane">
-      <div class="toolbar compact">
-        <div class="search-wrap"><label>Find Particular Student</label><input id="marksSearch" class="form-control" placeholder="Search URN or name"></div>
-        <button class="btn btn-primary" onclick="filterTable('marksTable','marksSearch',0)">Find Particular Student</button>
-        <button class="btn btn-outline-primary" onclick="showAll('marksTable')">Show All</button>
-        <button class="btn btn-outline-danger" onclick="filterBacklogs()">&gt; 3 Backlogs</button>
-      </div>
-      <div class="data-table">
-        <table class="table table-hover mb-0" id="marksTable">
-<thead>
-    <tr>
-        <th>URN</th>
-        <th>Name</th>
-        <th>Batch</th>
-        <th>Semester</th>
-        <th>Subject</th>
-        <th>Total</th>
-        <th>Status</th>
-    </tr>
-</thead>
-          <tbody>
-          {% for r in marks %}
-            <tr data-search="{{(r.urn|string + ' ' + (r.name or '')).lower()}}" data-urn="{{r.urn}}" data-status="{{r.status}}">
-<tr data-search="{{(r.urn|string + ' ' + (r.name or '')).lower()}}"
-    data-urn="{{r.urn}}"
-    data-status="{{r.status}}">
-    <td>{{r.urn}}</td>
-    <td>{{r.name}}</td>
-    <td>{{r.batch}}</td>
-    <td>{{r.semester}}</td>
-    <td>{{r.subject}}</td>
-    <td>{{r.total}}</td>
-    <td>{{r.status}}</td>
-</tr>
-<td>{{r.batch}}</td><td>{{r.semester}}</td><td>{{r.subject}}</td><td>{{r.ise}}</td><td>{{r.mse}}</td><td>{{r.ese}}</td><td>{{r.total}}</td><td>{{r.status}}</td>
-            </tr>
-          {% else %}<tr><td colspan="7" class="text-center">No semester marks yet.</td></tr>{% endfor %}
-          </tbody>
-        </table>
-      </div>
+<!-- MARKS -->
+<div class="tab-pane fade" id="marks-pane">
+    <div class="toolbar compact">
+        <div class="search-wrap">
+            <label>Find Particular Student</label>
+            <input id="marksSearch"
+                   class="form-control"
+                   placeholder="Search URN or name">
+        </div>
+
+        <button class="btn btn-primary"
+                onclick="filterTable('marksTable','marksSearch',0)">
+            Find Particular Student
+        </button>
+
+        <button class="btn btn-outline-primary"
+                onclick="showAll('marksTable')">
+            Show All
+        </button>
+
+        <button class="btn btn-outline-danger"
+                onclick="filterBacklogs()">
+            &gt; 3 Backlogs
+        </button>
     </div>
+
+    <div class="data-table">
+        <table class="table table-hover mb-0" id="marksTable">
+            <thead>
+                <tr>
+                    <th>URN</th>
+                    <th>Name</th>
+                    <th>Batch</th>
+                    <th>Semester</th>
+                    <th>Subject</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for r in marks %}
+                <tr data-search="{{ (r.urn|string + ' ' + (r.name or '')).lower() }}"
+                    data-urn="{{ r.urn }}"
+                    data-status="{{ r.status }}">
+                    <td>{{ r.urn }}</td>
+                    <td>{{ r.name }}</td>
+                    <td>{{ r.batch }}</td>
+                    <td>{{ r.semester }}</td>
+                    <td>{{ r.subject }}</td>
+                    <td>{{ r.total }}</td>
+                    <td>{{ r.status }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" class="text-center">
+                        No semester marks yet.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
 
     <!-- REPORTS -->
     <div class="tab-pane fade" id="reports-pane">
