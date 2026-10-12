@@ -1291,10 +1291,58 @@ def mentor_dashboard():
     finally:
         con.close()
 
-    ad = attendance_df(term_id=term_id, batch=batch)
+        ad = attendance_df(term_id=term_id, batch=batch)
     mk = marks_with_status(term_id=term_id, batch=batch)
-    low = ad[ad.percentage < LOW_ATTENDANCE] if not ad.empty else ad
-    fail = mk[mk.status == "FAIL"] if not mk.empty else mk
+
+    # Latest attendance period for each student in this term.
+    latest_by_urn = {}
+    for row in monthly_attendance:
+        urn = str(row["urn"])
+        key = (
+            int(row["end_month"]),
+            int(row["start_month"])
+        )
+        if urn not in latest_by_urn or key > latest_by_urn[urn]["key"]:
+            latest_by_urn[urn] = {
+                "key": key,
+                "row": row
+            }
+
+    low_attendance_students = []
+    for item in latest_by_urn.values():
+        row = item["row"]
+        percentage = float(row["monthly_percentage"] or 0)
+
+        if percentage < 75:
+            low_attendance_students.append({
+                "urn": row["urn"],
+                "name": row["name"],
+                "semester": row["semester"],
+                "start_month": row["start_month"],
+                "end_month": row["end_month"],
+                "monthly_percentage": percentage
+            })
+
+    # Students with at least one failed subject.
+    fail = (
+        mk[mk["status"].astype(str).str.strip().str.upper() == "FAIL"].copy()
+        if not mk.empty else mk
+    )
+
+    failed_subjects_by_student = []
+    if not fail.empty:
+        for (urn, name, semester), group in fail.groupby(
+            ["urn", "name", "semester"], dropna=False
+        ):
+            subjects = sorted(
+                set(group["subject"].dropna().astype(str))
+            )
+            failed_subjects_by_student.append({
+                "urn": urn,
+                "name": name,
+                "semester": semester,
+                "subjects": ", ".join(subjects)
+            })
 
     return render_template(
         "mentor_dashboard.html",
@@ -1305,8 +1353,10 @@ def mentor_dashboard():
         monthly_attendance=monthly_attendance,
         attendance=ad.to_dict("records"),
         marks=mk.to_dict("records"),
-        low_count=len(low["urn"].unique()) if not low.empty else 0,
-        backlog_count=len(fail["urn"].unique()) if not fail.empty else 0,
+        low_count=len(low_attendance_students),
+        backlog_count=len(fail["urn"].astype(str).unique()) if not fail.empty else 0,
+        low_attendance_students=low_attendance_students,
+        failed_subjects_by_student=failed_subjects_by_student,
         student_count=len(student_list),
         assignment=ma,
     )
