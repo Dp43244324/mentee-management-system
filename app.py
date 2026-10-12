@@ -1617,16 +1617,13 @@ def build_individual_pdf(urn, ma):
 
     styles = getSampleStyleSheet()
 
-    # -----------------------------
-    # Student data
-    # -----------------------------
+    if student.empty:
+        raise ValueError("Student not found for individual report.")
+
     s = student.iloc[0]
 
     story = [
-        Paragraph(
-            "Mentee Management Report",
-            styles["Title"]
-        ),
+        Paragraph("Mentee Management Report", styles["Title"]),
         Spacer(1, 18),
     ]
 
@@ -1635,7 +1632,7 @@ def build_individual_pdf(urn, ma):
     # -----------------------------
     profile_data = [
         ["Field", "Value"],
-        ["Urn", s.get("urn", "")],
+        ["URN", s.get("urn", "")],
         ["Name", s.get("name", "")],
         ["Batch", s.get("batch", "") or ""],
         ["Class Name", s.get("class_name", "") or ""],
@@ -1646,20 +1643,15 @@ def build_individual_pdf(urn, ma):
         ["Parent Name", s.get("parent_name", "") or ""],
         ["Parent Mobile", s.get("parent_mobile", "") or ""],
         ["Hobbies", s.get("hobbies", "") or ""],
-        ["Ssc Medium", s.get("ssc_medium", "") or ""],
-        ["Hsc Medium", s.get("hsc_medium", "") or ""],
-        ["Ssc Marks", s.get("ssc_marks", "") or ""],
-        ["Hsc Marks", s.get("hsc_marks", "") or ""],
+        ["SSC Medium", s.get("ssc_medium", "") or ""],
+        ["HSC Medium", s.get("hsc_medium", "") or ""],
+        ["SSC Marks", s.get("ssc_marks", "") or ""],
+        ["HSC Marks", s.get("hsc_marks", "") or ""],
         ["Awards", s.get("awards", "") or ""],
         ["Certifications", s.get("certifications", "") or ""],
     ]
 
-    t = Table(
-        profile_data,
-        colWidths=[130, 380],
-        repeatRows=1
-    )
-
+    t = Table(profile_data, colWidths=[130, 380], repeatRows=1)
     t.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
         ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
@@ -1679,39 +1671,29 @@ def build_individual_pdf(urn, ma):
     # -----------------------------
     # Attendance
     # -----------------------------
-    story.append(
-        Paragraph("Attendance", styles["Heading2"])
-    )
+    story.append(Paragraph("Attendance", styles["Heading2"]))
     story.append(Spacer(1, 8))
 
     if ad.empty:
-        story.append(
-            Paragraph(
-                "No attendance data available.",
-                styles["Normal"]
-            )
-        )
+        story.append(Paragraph(
+            "No attendance data available.",
+            styles["Normal"]
+        ))
     else:
-        da = [
-            ["Sem", "Total", "Present", "Absent", "%"]
+        attendance_data = [
+            ["Semester", "Total Lectures", "Present", "Absent", "%"]
         ]
 
-        da += [
-            [
+        for r in ad.itertuples():
+            attendance_data.append([
                 r.semester,
                 r.total_lectures,
                 r.present,
                 r.absent,
                 r.percentage
-            ]
-            for r in ad.itertuples()
-        ]
+            ])
 
-        t = Table(
-            da,
-            repeatRows=1
-        )
-
+        t = Table(attendance_data, repeatRows=1)
         t.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
             ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
@@ -1720,119 +1702,68 @@ def build_individual_pdf(urn, ma):
             ("ALIGN", (0, 0), (-1, -1), "CENTER"),
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ]))
-
         story.append(t)
 
-        # -----------------------------
         # Attendance graph
-        # -----------------------------
-        if not ad.empty:
-            fig, ax = plt.subplots(figsize=(7.5, 3.8))
+        fig, ax = plt.subplots(figsize=(7.5, 3.8))
+        ax.plot(ad["semester"], ad["percentage"], marker="o")
+        ax.set_title("Attendance by Semester")
+        ax.set_xlabel("Semester")
+        ax.set_ylabel("Attendance %")
+        ax.set_ylim(0, 100)
+        ax.grid(True, alpha=0.3)
+        fig.tight_layout()
 
-            ax.plot(
-                ad["semester"],
-                ad["percentage"],
-                marker="o"
-            )
+        chart_buf = io.BytesIO()
+        fig.savefig(
+            chart_buf,
+            format="png",
+            dpi=140,
+            bbox_inches="tight"
+        )
+        plt.close(fig)
+        chart_buf.seek(0)
 
-            ax.set_title("Attendance by Semester")
-            ax.set_xlabel("Semester")
-            ax.set_ylabel("Attendance %")
-            ax.set_ylim(0, 100)
-            ax.grid(True, alpha=0.3)
-
-            fig.tight_layout()
-
-            chart_buf = io.BytesIO()
-            fig.savefig(
-                chart_buf,
-                format="png",
-                dpi=140,
-                bbox_inches="tight"
-            )
-            plt.close(fig)
-
-            chart_buf.seek(0)
-
-            story.append(Spacer(1, 12))
-            story.append(
-                Image(
-                    chart_buf,
-                    width=500,
-                    height=260
-                )
-            )
+        story.append(Spacer(1, 12))
+        story.append(Image(chart_buf, width=500, height=260))
 
     story.append(Spacer(1, 22))
 
     # -----------------------------
     # Semester Marks
     # -----------------------------
-    story.append(
-        Paragraph("Semester Marks", styles["Heading2"])
-    )
+    story.append(Paragraph("Semester Marks", styles["Heading2"]))
     story.append(Spacer(1, 8))
 
     if mk.empty:
-        story.append(
-            Paragraph(
-                "No semester marks available.",
-                styles["Normal"]
-            )
-        )
+        story.append(Paragraph(
+            "No semester marks available.",
+            styles["Normal"]
+        ))
     else:
-        dm = [
-            [
-                "Sem",
-                "Subject",
-                "ISE",
-                "MSE",
-                "ESE",
-                "Total",
-                "Status",
-                "Reason"
-            ]
-        ]
+        marks_data = [["Semester", "Subject", "Total", "Status"]]
 
-        dm += [
-            [
+        for r in mk.itertuples():
+            marks_data.append([
                 r.semester,
                 r.subject,
-                r.ise,
-                r.mse,
-                r.ese,
                 r.total,
-                r.status,
-                getattr(r, "reason", "") or ""
-            ]
-            for r in mk.itertuples()
-        ]
+                r.status
+            ])
 
         t = Table(
-            dm,
-            repeatRows=1,
-            colWidths=[
-                35,
-                90,
-                45,
-                45,
-                45,
-                50,
-                55,
-                145
-            ]
+            marks_data,
+            colWidths=[70, 190, 100, 100],
+            repeatRows=1
         )
-
         t.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
             ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
-            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
             ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("ALIGN", (0, 0), (0, -1), "CENTER"),
-            ("ALIGN", (2, 1), (6, -1), "CENTER"),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
         ]))
-
         story.append(t)
 
     story.append(Spacer(1, 22))
@@ -1840,24 +1771,18 @@ def build_individual_pdf(urn, ma):
     # -----------------------------
     # Mentor Suggestions
     # -----------------------------
-    story.append(
-        Paragraph("Mentor Suggestions", styles["Heading2"])
-    )
+    story.append(Paragraph("Mentor Suggestions", styles["Heading2"]))
     story.append(Spacer(1, 8))
 
     suggestions = get_suggestions(urn)
 
     if not suggestions:
-        story.append(
-            Paragraph(
-                "No mentor suggestions available.",
-                styles["Normal"]
-            )
-        )
+        story.append(Paragraph(
+            "No mentor suggestions available.",
+            styles["Normal"]
+        ))
     else:
-        suggestion_data = [
-            ["Semester", "Date", "Suggestion"]
-        ]
+        suggestion_data = [["Semester", "Date", "Suggestion"]]
 
         for sug in suggestions:
             suggestion_data.append([
@@ -1871,7 +1796,6 @@ def build_individual_pdf(urn, ma):
             colWidths=[70, 100, 330],
             repeatRows=1
         )
-
         t.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
             ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
@@ -1879,11 +1803,9 @@ def build_individual_pdf(urn, ma):
             ("FONTSIZE", (0, 0), (-1, -1), 9),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ]))
-
         story.append(t)
 
     doc.build(story)
-
     out.seek(0)
     return out
 
