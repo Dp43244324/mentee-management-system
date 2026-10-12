@@ -251,13 +251,34 @@
       </div>
       <div class="data-table">
         <table class="table table-hover mb-0" id="marksTable">
-          <thead><tr><th>URN</th><th>Name</th><th>Batch</th><th>Semester</th><th>Subject</th><th>ISE</th><th>MSE</th><th>ESE</th><th>Total</th><th>Status</th></tr></thead>
+<thead>
+    <tr>
+        <th>URN</th>
+        <th>Name</th>
+        <th>Batch</th>
+        <th>Semester</th>
+        <th>Subject</th>
+        <th>Total</th>
+        <th>Status</th>
+    </tr>
+</thead>
           <tbody>
           {% for r in marks %}
             <tr data-search="{{(r.urn|string + ' ' + (r.name or '')).lower()}}" data-urn="{{r.urn}}" data-status="{{r.status}}">
-              <td>{{r.urn}}</td><td>{{r.name}}</td><td>{{r.batch}}</td><td>{{r.semester}}</td><td>{{r.subject}}</td><td>{{r.ise}}</td><td>{{r.mse}}</td><td>{{r.ese}}</td><td>{{r.total}}</td><td>{{r.status}}</td>
+<tr data-search="{{(r.urn|string + ' ' + (r.name or '')).lower()}}"
+    data-urn="{{r.urn}}"
+    data-status="{{r.status}}">
+    <td>{{r.urn}}</td>
+    <td>{{r.name}}</td>
+    <td>{{r.batch}}</td>
+    <td>{{r.semester}}</td>
+    <td>{{r.subject}}</td>
+    <td>{{r.total}}</td>
+    <td>{{r.status}}</td>
+</tr>
+<td>{{r.batch}}</td><td>{{r.semester}}</td><td>{{r.subject}}</td><td>{{r.ise}}</td><td>{{r.mse}}</td><td>{{r.ese}}</td><td>{{r.total}}</td><td>{{r.status}}</td>
             </tr>
-          {% else %}<tr><td colspan="10" class="text-center">No semester marks yet.</td></tr>{% endfor %}
+          {% else %}<tr><td colspan="7" class="text-center">No semester marks yet.</td></tr>{% endfor %}
           </tbody>
         </table>
       </div>
