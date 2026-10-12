@@ -528,13 +528,13 @@ function filterMonthlyAttendance(below75 = false) {
     const rowEnd = Number(row.dataset.endMonth);
     const percentage = Number(row.dataset.percentage);
 
-    const overlaps = rowStart <= end && rowEnd >= start;
+    const matchesMonthRange = rowStart === start && rowEnd === end;
     const matchesStudent = row.dataset.search.includes(search);
     const matchesPercentage = !below75 || percentage < 75;
 
-    row.hidden = !(
-      overlaps && matchesStudent && matchesPercentage
-    );
+   row.hidden = !(
+  matchesMonthRange && matchesStudent && matchesPercentage
+);
   });
 }
 
