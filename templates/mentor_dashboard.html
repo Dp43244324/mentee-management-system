@@ -543,7 +543,12 @@ function resetMonthlyAttendanceFilters() {
   document.getElementById("attendanceEndMonth").value = "12";
   document.getElementById("attendanceSearch").value = "";
 
-  filterMonthlyAttendance(false);
+  // Show every monthly attendance record
+  document.querySelectorAll(
+    "#attendanceTable tbody tr[data-search]"
+  ).forEach(row => {
+    row.hidden = false;
+  });
 }
 
 document.addEventListener("DOMContentLoaded", function () {
