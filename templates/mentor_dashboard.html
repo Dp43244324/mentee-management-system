@@ -341,7 +341,83 @@
       <div class="row g-3">
         <div class="col-lg-6"><div class="mini-card"><h5>Students below 75% attendance</h5><b>{{low_count}}</b></div></div>
         <div class="col-lg-6"><div class="mini-card"><h5>Students with backlogs</h5><b>{{backlog_count}}</b></div></div>
+        
       </div>
+      <div class="row g-3 mt-2">
+  <div class="col-12">
+    <div class="report-card">
+      <h4>Students Below 75% Attendance</h4>
+      <p><strong>Count:</strong> {{ low_count }}</p>
+
+      {% if low_attendance_students %}
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover">
+          <thead>
+            <tr>
+              <th>URN</th>
+              <th>Name</th>
+              <th>Sem</th>
+              <th>Latest Month / Period</th>
+              <th>Attendance</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in low_attendance_students %}
+            <tr>
+              <td>{{ r.urn }}</td>
+              <td>{{ r.name }}</td>
+              <td>{{ r.semester }}</td>
+              <td>
+                {{ ['','January','February','March','April','May','June','July','August','September','October','November','December'][r.start_month] }}
+                –
+                {{ ['','January','February','March','April','May','June','July','August','September','October','November','December'][r.end_month] }}
+              </td>
+              <td>{{ "%.2f"|format(r.monthly_percentage) }}%</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p>No students below 75% attendance in their latest period.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col-12">
+    <div class="report-card">
+      <h4>Students with Backlogs / Failed Subjects</h4>
+      <p><strong>Count:</strong> {{ backlog_count }}</p>
+
+      {% if failed_subjects_by_student %}
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover">
+          <thead>
+            <tr>
+              <th>URN</th>
+              <th>Name</th>
+              <th>Sem</th>
+              <th>Failed Subjects</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in failed_subjects_by_student %}
+            <tr>
+              <td>{{ r.urn }}</td>
+              <td>{{ r.name }}</td>
+              <td>{{ r.semester }}</td>
+              <td>{{ r.subjects }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p>No failed subjects.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
     </div>
   </div>
 </div>
