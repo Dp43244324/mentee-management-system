@@ -1040,9 +1040,6 @@ def student_attendance():
 
     return redirect(url_for("student_dashboard"))
 
-
-
-
 @app.route("/student/marks", methods=["POST"])
 @login_required("student")
 def student_marks():
@@ -1053,6 +1050,7 @@ def student_marks():
         sem = int(request.form.get("semester", ""))
         subject = request.form.get("subject", "").strip()
         total = float(request.form.get("total_marks", ""))
+        status = request.form.get("status", "").strip()
 
         if sem not in range(1, 9):
             raise ValueError("Enter a valid semester from 1 to 8.")
@@ -1060,17 +1058,14 @@ def student_marks():
         if not subject:
             raise ValueError("Enter the subject name.")
 
-        if not student_has_semester(urn, sem):
-            raise ValueError("You are not assigned to that semester.")
-
-        # Assumes the total is out of 100 and passing marks are 40.
         if not 0 <= total <= 100:
             raise ValueError("Total marks must be between 0 and 100.")
 
-        status = request.form.get("status", "").strip().capitalize()
-
         if status not in ("Pass", "Fail"):
-         raise ValueError("Please select Pass or Fail.")
+            raise ValueError("Please select Pass or Fail.")
+
+        if not student_has_semester(urn, sem):
+            raise ValueError("You are not assigned to that semester.")
 
         con = db()
 
@@ -1087,7 +1082,6 @@ def student_marks():
         if not term:
             raise ValueError("You are not assigned to that semester.")
 
-        # NOTE: This insert requires a compatible SemesterMarks table.
         con.execute("""
             INSERT INTO SemesterMarks
                 (urn, term_id, semester, subject, total, status)
@@ -1109,7 +1103,11 @@ def student_marks():
     except Exception:
         if con:
             con.rollback()
-        flash("Could not save marks. Check the SemesterMarks table structure.", "danger")
+        flash(
+            "Could not save marks. Check the SemesterMarks table "
+            "and marks-reading queries.",
+            "danger"
+        )
 
     finally:
         if con:
