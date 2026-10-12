@@ -781,6 +781,7 @@ def add_student_participation():
     return redirect(url_for("student_dashboard"))
 
 
+
 @app.route("/student/career-profile", methods=["POST"])
 @login_required("student")
 def save_student_career_profile():
@@ -795,7 +796,7 @@ def save_student_career_profile():
         "long_term_goal",
         "long_term_action_plan",
     )
-    
+
     con = db()
     try:
         existing = con.execute(
@@ -809,19 +810,19 @@ def save_student_career_profile():
                 values[field] = request.form.get(field, "").strip()
             else:
                 values[field] = (
-                    existing[field] or ""
+                    (existing[field] or "")
                     if existing else ""
                 )
 
+        for field in ("hackerrank_url", "github_url"):
+            url = values[field]
+            if url and not url.startswith(("https://", "http://")):
+                flash(
+                    "Profile links must begin with http:// or https://.",
+                    "danger"
+                )
+                return redirect(url_for("student_dashboard"))
 
-    for field in ("hackerrank_url", "github_url"):
-        url = values[field]
-        if url and not url.startswith(("https://", "http://")):
-            flash("Profile links must begin with http:// or https://.", "danger")
-            return redirect(url_for("student_dashboard"))
-
-    con = db()
-    try:
         con.execute("""
             INSERT INTO StudentCareerProfile (
                 urn, hackerrank_url, github_url, vision,
@@ -848,15 +849,19 @@ def save_student_career_profile():
             values["long_term_goal"],
             values["long_term_action_plan"],
         ))
+
         con.commit()
         flash("Career profile saved successfully.", "success")
+
     except Exception:
         con.rollback()
         flash("Could not save your career profile.", "danger")
+
     finally:
         con.close()
 
     return redirect(url_for("student_dashboard"))
+
 
 
 @app.route("/student/mission", methods=["POST"])
