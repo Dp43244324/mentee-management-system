@@ -1583,20 +1583,146 @@ def report_student(urn):
         abort(404)
     return ma, row.iloc[0].to_dict()
 
-
 def build_individual_excel(urn, ma):
+    """Build an individual Excel report using the latest submitted attendance."""
+
     out = io.BytesIO()
+
+    # -----------------------------
+    # Student Profile
+    # -----------------------------
     df = dataframe_for_report(ma["term_id"], ma["batch"])
     student = df[df["urn"].astype(str) == str(urn)]
-    ad = attendance_df(urn=urn, term_id=ma["term_id"])
-    mk = marks_with_status(urn=urn, term_id=ma["term_id"])
-    with pd.ExcelWriter(out, engine="openpyxl") as w:
-        student.to_excel(w, index=False, sheet_name="Student Profile")
-        ad.to_excel(w, index=False, sheet_name="Attendance")
-        mk.to_excel(w, index=False, sheet_name="Semester Marks")
+
+    if student.empty:
+        raise ValueError("Student not found for individual report.")
+
+    # -----------------------------
+    # Latest Submitted Attendance
+    # -----------------------------
+    con = db()
+    try:
+        monthly_rows = con.execute("""
+            SELECT
+                sma.urn,
+                sma.start_month,
+                sma.end_month,
+                sma.monthly_percentage,
+                sma.cumulative_percentage,
+                t.semester
+            FROM StudentMonthlyAttendance sma
+            JOIN AcademicTerm t
+              ON t.term_id = sma.term_id
+            WHERE sma.urn = ?
+              AND sma.term_id = ?
+            ORDER BY
+                sma.end_month DESC,
+                sma.start_month DESC
+        """, (urn, ma["term_id"])).fetchall()
+    finally:
+        con.close()
+
+    month_names = [
+        "", "January", "February", "March", "April",
+        "May", "June", "July", "August", "September",
+        "October", "November", "December"
+    ]
+
+    attendance_records = []
+
+    if monthly_rows:
+        latest = monthly_rows[0]
+
+        start_month = latest["start_month"]
+        end_month = latest["end_month"]
+
+        period = month_names[start_month]
+        if start_month != end_month:
+            period += " – " + month_names[end_month]
+
+        attendance_records.append({
+            "URN": str(urn),
+            "Semester": latest["semester"],
+            "Latest Month / Period": period,
+            "Monthly Attendance (%)": latest["monthly_percentage"],
+            "Cumulative Attendance (%)": latest["cumulative_percentage"]
+        })
+
+    attendance_df_latest = pd.DataFrame(attendance_records)
+
+    # -----------------------------
+    # Semester Marks
+    # -----------------------------
+    mk = marks_with_status(
+        urn=urn,
+        term_id=ma["term_id"]
+    )
+
+    if not mk.empty:
+        marks_columns = [
+            col for col in
+            ["urn", "name", "batch", "semester", "subject", "total", "status"]
+            if col in mk.columns
+        ]
+
+        marks_export = mk[marks_columns].copy()
+
+        marks_export = marks_export.rename(columns={
+            "urn": "URN",
+            "name": "Name",
+            "batch": "Batch",
+            "semester": "Semester",
+            "subject": "Subject",
+            "total": "Total",
+            "status": "Status"
+        })
+    else:
+        marks_export = pd.DataFrame(
+            columns=[
+                "URN", "Name", "Batch", "Semester",
+                "Subject", "Total", "Status"
+            ]
+        )
+
+    # -----------------------------
+    # Export to Excel
+    # -----------------------------
+    with pd.ExcelWriter(out, engine="openpyxl") as writer:
+        student.to_excel(
+            writer,
+            index=False,
+            sheet_name="Student Profile"
+        )
+
+        attendance_df_latest.to_excel(
+            writer,
+            index=False,
+            sheet_name="Attendance"
+        )
+
+        marks_export.to_excel(
+            writer,
+            index=False,
+            sheet_name="Semester Marks"
+        )
+
+        # Make the sheets easier to read.
+        for worksheet in writer.sheets.values():
+            worksheet.freeze_panes = "A2"
+            worksheet.auto_filter.ref = worksheet.dimensions
+
+            for column_cells in worksheet.columns:
+                max_length = max(
+                    len(str(cell.value or ""))
+                    for cell in column_cells
+                )
+                column_letter = column_cells[0].column_letter
+                worksheet.column_dimensions[column_letter].width = min(
+                    max_length + 3, 35
+                )
+
     out.seek(0)
     return out
-
 
 def build_individual_pdf(urn, ma):
     df = dataframe_for_report(ma["term_id"], ma["batch"])
@@ -1901,36 +2027,256 @@ def individual_pdf(urn):
 @app.route("/mentor/export/excel")
 @login_required("mentor")
 def export_excel():
-    """Batch Excel report."""
+    """Batch Excel report with latest submitted attendance and simplified marks."""
     ma = mentor_scope()
+    term_id = ma["term_id"]
+    batch = ma["batch"]
+
     out = io.BytesIO()
-    df = dataframe_for_report(ma["term_id"], ma["batch"])
-    ad = attendance_df(term_id=ma["term_id"], batch=ma["batch"])
-    mk = marks_with_status(term_id=ma["term_id"], batch=ma["batch"])
-    with pd.ExcelWriter(out, engine="openpyxl") as w:
-        df.to_excel(w, index=False, sheet_name="Students")
-        ad.to_excel(w, index=False, sheet_name="Attendance")
-        mk.to_excel(w, index=False, sheet_name="Semester Marks")
-    filename = f"Batch_Report_{re.sub(r'[^A-Za-z0-9_.-]', '_', str(ma['batch']))}.xlsx"
-    save_report_file(filename, out.getvalue())
-    out.seek(0)
-    return send_file(
-        out, as_attachment=True, download_name=filename,
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+    # -----------------------------
+    # Student Profile
+    # -----------------------------
+    df = dataframe_for_report(term_id, batch)
+
+    # -----------------------------
+    # Latest Submitted Attendance
+    # -----------------------------
+    con = db()
+    try:
+        monthly_rows = con.execute("""
+            SELECT
+                sma.urn,
+                s.name,
+                sma.start_month,
+                sma.end_month,
+                sma.monthly_percentage,
+                sma.cumulative_percentage,
+                t.semester
+            FROM StudentMonthlyAttendance sma
+            JOIN Student s ON s.urn = sma.urn
+            JOIN AcademicTerm t ON t.term_id = sma.term_id
+            JOIN StudentAcademicAssignment sa
+              ON sa.student_id = s.student_id
+             AND sa.term_id = sma.term_id
+            WHERE sma.term_id = ?
+              AND sa.batch = ?
+            ORDER BY
+                sma.urn,
+                sma.end_month DESC,
+                sma.start_month DESC
+        """, (term_id, batch)).fetchall()
+    finally:
+        con.close()
+
+    month_names = [
+        "", "January", "February", "March", "April",
+        "May", "June", "July", "August", "September",
+        "October", "November", "December"
+    ]
+
+    # Keep one latest submitted period per student.
+    latest_by_urn = {}
+
+    for row in monthly_rows:
+        urn = str(row["urn"])
+
+        if urn not in latest_by_urn:
+            latest_by_urn[urn] = row
+
+    attendance_records = []
+
+    for urn, row in latest_by_urn.items():
+        start_month = row["start_month"]
+        end_month = row["end_month"]
+
+        period = month_names[start_month]
+        if start_month != end_month:
+            period += " – " + month_names[end_month]
+
+        attendance_records.append({
+            "URN": urn,
+            "Name": row["name"],
+            "Semester": row["semester"],
+            "Latest Month / Period": period,
+            "Monthly Attendance (%)": row["monthly_percentage"],
+            "Cumulative Attendance (%)": row["cumulative_percentage"]
+        })
+
+    attendance_export = pd.DataFrame(
+        attendance_records,
+        columns=[
+            "URN",
+            "Name",
+            "Semester",
+            "Latest Month / Period",
+            "Monthly Attendance (%)",
+            "Cumulative Attendance (%)"
+        ]
     )
+
+    # -----------------------------
+    # Semester Marks
+    # -----------------------------
+    mk = marks_with_status(term_id=term_id, batch=batch)
+
+    marks_columns = [
+        "urn", "name", "batch", "semester",
+        "subject", "total", "status"
+    ]
+
+    if mk.empty:
+        marks_export = pd.DataFrame(columns=[
+            "URN", "Name", "Batch", "Semester",
+            "Subject", "Total", "Status"
+        ])
+    else:
+        available_columns = [
+            col for col in marks_columns if col in mk.columns
+        ]
+
+        marks_export = mk[available_columns].copy()
+
+        marks_export = marks_export.rename(columns={
+            "urn": "URN",
+            "name": "Name",
+            "batch": "Batch",
+            "semester": "Semester",
+            "subject": "Subject",
+            "total": "Total",
+            "status": "Status"
+        })
+
+    # -----------------------------
+    # Write Excel Workbook
+    # -----------------------------
+    with pd.ExcelWriter(out, engine="openpyxl") as writer:
+        df.to_excel(
+            writer,
+            index=False,
+            sheet_name="Students"
+        )
+
+        attendance_export.to_excel(
+            writer,
+            index=False,
+            sheet_name="Attendance"
+        )
+
+        marks_export.to_excel(
+            writer,
+            index=False,
+            sheet_name="Semester Marks"
+        )
+
+        # Format every sheet for readability.
+        for worksheet in writer.sheets.values():
+            worksheet.freeze_panes = "A2"
+            worksheet.auto_filter.ref = worksheet.dimensions
+
+            for column_cells in worksheet.columns:
+                max_length = max(
+                    len(str(cell.value or ""))
+                    for cell in column_cells
+                )
+
+                column_letter = column_cells[0].column_letter
+                worksheet.column_dimensions[column_letter].width = min(
+                    max_length + 3, 35
+                )
+
+    filename = (
+        f"Batch_Report_"
+        f"{re.sub(r'[^A-Za-z0-9_.-]', '_', str(batch))}.xlsx"
+    )
+
+    save_report_file(filename, out.getvalue())
+
+    out.seek(0)
+
+    return send_file(
+        out,
+        as_attachment=True,
+        download_name=filename,
+        mimetype=(
+            "application/vnd.openxmlformats-officedocument."
+            "spreadsheetml.sheet"
+        )
+    )
+
 
 
 @app.route("/mentor/export/pdf")
 @login_required("mentor")
 def export_pdf():
-    """Batch PDF report."""
+    """Batch PDF report using each student's latest submitted attendance period."""
     ma = mentor_scope()
-    df = dataframe_for_report(ma["term_id"], ma["batch"])
-    ad = attendance_df(term_id=ma["term_id"], batch=ma["batch"])
-    mk = marks_with_status(term_id=ma["term_id"], batch=ma["batch"])
+    term_id = ma["term_id"]
+    batch = ma["batch"]
+
+    df = dataframe_for_report(term_id, batch)
+    mk = marks_with_status(term_id=term_id, batch=batch)
+
+    con = db()
+    try:
+        monthly_rows = con.execute("""
+            SELECT
+                sma.urn,
+                s.name,
+                sma.start_month,
+                sma.end_month,
+                sma.monthly_percentage,
+                sma.cumulative_percentage,
+                t.semester
+            FROM StudentMonthlyAttendance sma
+            JOIN Student s ON s.urn = sma.urn
+            JOIN AcademicTerm t ON t.term_id = sma.term_id
+            JOIN StudentAcademicAssignment sa
+              ON sa.student_id = s.student_id
+             AND sa.term_id = sma.term_id
+            WHERE sma.term_id = ?
+              AND sa.batch = ?
+            ORDER BY
+                sma.urn,
+                sma.end_month DESC,
+                sma.start_month DESC
+        """, (term_id, batch)).fetchall()
+    finally:
+        con.close()
+
+    # Keep the latest submitted period for each student.
+    latest_by_urn = {}
+    for row in monthly_rows:
+        urn = str(row["urn"])
+        if urn not in latest_by_urn:
+            latest_by_urn[urn] = dict(row)
+
+    month_names = [
+        "", "January", "February", "March", "April",
+        "May", "June", "July", "August", "September",
+        "October", "November", "December"
+    ]
+
+    attendance_records = []
+    for urn, row in latest_by_urn.items():
+        start = row["start_month"]
+        end = row["end_month"]
+
+        period = month_names[start]
+        if start != end:
+            period += " – " + month_names[end]
+
+        attendance_records.append({
+            "urn": urn,
+            "name": row["name"],
+            "semester": row["semester"],
+            "period": period,
+            "percentage": float(row["monthly_percentage"])
+        })
+
+    attendance_df_latest = pd.DataFrame(attendance_records)
 
     out = io.BytesIO()
-
     doc = SimpleDocTemplate(
         out,
         pagesize=landscape(A4),
@@ -1941,215 +2287,170 @@ def export_pdf():
     )
 
     styles = getSampleStyleSheet()
-
     story = [
-        Paragraph(
-            "Mentee Management Report",
-            styles["Title"]
-        ),
+        Paragraph("Mentee Management Report", styles["Title"]),
         Spacer(1, 12),
-        Paragraph(
-            f"Batch: {ma['batch']}",
-            styles["Heading2"]
-        ),
-        Paragraph(
-            f"Total Mentees: {len(df)}",
-            styles["Heading2"]
-        ),
+        Paragraph(f"Batch: {batch}", styles["Heading2"]),
+        Paragraph(f"Total Mentees: {len(df)}", styles["Heading2"]),
         Spacer(1, 12),
     ]
 
-    # ---------------------------------------------------------
-    # STUDENTS
-    # ---------------------------------------------------------
+    # Students
+    student_data = [
+        ["URN", "Name", "Batch", "Class", "Division", "Roll No", "Mobile"]
+    ]
 
-    data = [["URN", "Name", "Batch", "Class", "Div", "Roll", "Mobile"]]
-
-    data += [
-        [
+    for r in df.itertuples():
+        student_data.append([
             r.urn,
             r.name,
             r.batch,
-            r.class_name or "",
-            r.division or "",
-            r.roll_no or "",
-            r.mobile or ""
-        ]
-        for r in df.itertuples()
-    ]
+            getattr(r, "class_name", "") or "",
+            getattr(r, "division", "") or "",
+            getattr(r, "roll_no", "") or "",
+            getattr(r, "mobile", "") or ""
+        ])
 
-    student_table = Table(data, repeatRows=1)
-
+    student_table = Table(student_data, repeatRows=1)
     student_table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f4e78")),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("GRID", (0, 0), (-1, -1), .3, colors.grey),
-        ("FONTSIZE", (0, 0), (-1, -1), 7),
+        ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
+        ("FONTSIZE", (0, 0), (-1, -1), 8),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
     ]))
-
     story.append(student_table)
 
-    # ---------------------------------------------------------
-    # ATTENDANCE
-    # ---------------------------------------------------------
-
+    # Latest submitted attendance per student
     story.append(PageBreak())
+    story.append(Paragraph(
+        "Batch Attendance - Latest Submitted Period",
+        styles["Heading2"]
+    ))
+    story.append(Spacer(1, 8))
 
-    story.append(
-        Paragraph(
-            "Batch Attendance - All Students",
-            styles["Heading2"]
-        )
-    )
-
-    if ad.empty:
-
-        story.append(
-            Paragraph(
-                "No attendance data available.",
-                styles["Normal"]
-            )
-        )
-
+    if attendance_df_latest.empty:
+        story.append(Paragraph(
+            "No monthly attendance submitted by students.",
+            styles["Normal"]
+        ))
     else:
-
-        avg_attendance = (
-            ad.groupby(["urn", "name"])["percentage"]
-            .mean()
-            .reset_index()
-            .sort_values("name")
-        )
-
-        attendance_table = [
-            ["Student", "Average Attendance %"]
+        attendance_data = [
+            ["URN", "Student", "Semester", "Latest Month / Period", "Attendance %"]
         ]
 
-        attendance_table += [
-            [
+        for r in attendance_df_latest.itertuples():
+            attendance_data.append([
+                r.urn,
                 r.name,
-                f"{r.percentage:.1f}"
-            ]
-            for r in avg_attendance.itertuples()
-        ]
+                r.semester,
+                r.period,
+                f"{r.percentage:.2f}%"
+            ])
 
-        attendance_tbl = Table(
-            attendance_table,
-            colWidths=[310, 180],
+        attendance_table = Table(
+            attendance_data,
+            colWidths=[85, 155, 65, 180, 100],
             repeatRows=1
         )
-
-        attendance_tbl.setStyle(TableStyle([
+        attendance_table.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.black),
-            ("GRID", (0, 0), (-1, -1), .5, colors.grey),
-            ("FONTSIZE", (0, 0), (-1, -1), 10),
+            ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ]))
+        story.append(attendance_table)
 
-        story.append(attendance_tbl)
-
-        # -----------------------------------------------------
-        # ATTENDANCE GRAPH
-        # -----------------------------------------------------
-
-        story.append(Spacer(1, 20))
-
+        # Graph using the latest submitted attendance for each student
+        graph_df = attendance_df_latest.sort_values("name")
         fig, ax = plt.subplots(figsize=(10, 4))
-
-        ax.bar(
-            avg_attendance["name"],
-            avg_attendance["percentage"]
-        )
-
+        ax.bar(graph_df["name"], graph_df["percentage"])
         ax.axhline(
             LOW_ATTENDANCE,
             linestyle="--",
             label=f"Low Attendance Threshold ({LOW_ATTENDANCE}%)"
         )
-
-        ax.set_title(
-            f"Batch Attendance - {ma['batch']}"
-        )
-
+        ax.set_title(f"Latest Submitted Attendance - {batch}")
         ax.set_xlabel("Students")
-        ax.set_ylabel("Attendance %")
+        ax.set_ylabel("Attendance (%)")
         ax.set_ylim(0, 100)
-
-        ax.tick_params(
-            axis="x",
-            rotation=45
-        )
-
+        ax.tick_params(axis="x", rotation=45)
         ax.legend()
-
         fig.tight_layout()
 
         graph_buffer = io.BytesIO()
-
         fig.savefig(
             graph_buffer,
             format="png",
             dpi=140,
             bbox_inches="tight"
         )
-
         plt.close(fig)
-
         graph_buffer.seek(0)
+        story.append(Spacer(1, 16))
+        story.append(Image(graph_buffer, width=700, height=280))
 
-        story.append(
-            Image(
-                graph_buffer,
-                width=700,
-                height=280
-            )
-        )
-
-    # ---------------------------------------------------------
-    # STUDENTS WITH BACKLOGS
-    # ---------------------------------------------------------
-
+    # Semester marks: only total and status
     story.append(PageBreak())
+    story.append(Paragraph("Semester Marks", styles["Heading2"]))
+    story.append(Spacer(1, 8))
 
-    story.append(
-        Paragraph(
-            "Students with Backlogs",
-            styles["Heading2"]
+    if mk.empty:
+        story.append(Paragraph(
+            "No semester marks available.",
+            styles["Normal"]
+        ))
+    else:
+        marks_data = [
+            ["URN", "Name", "Batch", "Semester", "Subject", "Total", "Status"]
+        ]
+
+        for r in mk.itertuples():
+            marks_data.append([
+                r.urn,
+                r.name,
+                r.batch,
+                r.semester,
+                r.subject,
+                r.total,
+                r.status
+            ])
+
+        marks_table = Table(
+            marks_data,
+            repeatRows=1
         )
-    )
+        marks_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f4e78")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
+            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ]))
+        story.append(marks_table)
+
+    # Students with backlogs
+    story.append(PageBreak())
+    story.append(Paragraph("Students with Backlogs", styles["Heading2"]))
+    story.append(Spacer(1, 8))
 
     backlogs = backlog_summary(mk)
 
     if backlogs.empty:
-
-        story.append(
-            Paragraph(
-                "No students have backlogs.",
-                styles["Normal"]
-            )
-        )
-
+        story.append(Paragraph(
+            "No students have backlogs.",
+            styles["Normal"]
+        ))
     else:
-
-        backlog_data = [
-            [
-                "Name",
-                "Backlogs",
-                "Failed Subjects",
-                "Status"
-            ]
-        ]
+        backlog_data = [["Name", "Backlogs", "Failed Subjects", "Status"]]
 
         for r in backlogs.itertuples():
-
             backlog_data.append([
                 r.name,
                 r.backlog_count,
-                Paragraph(
-                    str(r.failed_subjects),
-                    styles["Normal"]
-                ),
+                Paragraph(str(r.failed_subjects), styles["Normal"]),
                 r.backlog_status
             ])
 
@@ -2158,33 +2459,22 @@ def export_pdf():
             colWidths=[170, 80, 330, 140],
             repeatRows=1
         )
-
         backlog_table.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f4e78")),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-            ("GRID", (0, 0), (-1, -1), .5, colors.grey),
+            ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
             ("FONTSIZE", (0, 0), (-1, -1), 9),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ]))
-
         story.append(backlog_table)
-
-    # ---------------------------------------------------------
-    # BUILD PDF
-    # ---------------------------------------------------------
 
     doc.build(story)
 
     filename = (
         f"Batch_Report_"
-        f"{re.sub(r'[^A-Za-z0-9_.-]', '_', str(ma['batch']))}.pdf"
+        f"{re.sub(r'[^A-Za-z0-9_.-]', '_', str(batch))}.pdf"
     )
-
-    save_report_file(
-        filename,
-        out.getvalue()
-    )
-
+    save_report_file(filename, out.getvalue())
     out.seek(0)
 
     return send_file(
@@ -2193,6 +2483,7 @@ def export_pdf():
         download_name=filename,
         mimetype="application/pdf"
     )
+
 
 
 @app.route("/mentor/suggestion/add", methods=["GET", "POST"])
