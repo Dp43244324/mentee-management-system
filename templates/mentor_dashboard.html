@@ -58,10 +58,11 @@
             <tr data-urn="{{st.urn|e}}" data-search="{{(st.urn|string + ' ' + (st.name or '') + ' ' + (st.roll_no or '')).lower()|e}}">
               <td>{{st.urn}}</td><td>{{st.name}}</td><td>{{st.batch}}</td><td>{{st.class_name or ''}}</td><td>{{st.division or ''}}</td><td>{{st.roll_no or ''}}</td>
               <td>
-  <a class="btn btn-sm btn-primary"
-     href="{{ url_for('mentor_student', urn=st.urn) }}">
+  <button class="btn btn-sm btn-primary"
+          type="button"
+          onclick="selectStudent('{{ st.urn|e }}')">
     Open
-  </a>
+  </button>
 </td>
             </tr>
           {% else %}
