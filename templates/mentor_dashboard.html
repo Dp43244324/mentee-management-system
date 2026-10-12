@@ -135,27 +135,111 @@
       </div>
     </div>
 
-    <!-- ATTENDANCE -->
-    <div class="tab-pane fade" id="attendance-pane">
-      <div class="toolbar compact">
-        <div class="search-wrap"><label>Find Particular Student</label><input id="attendanceSearch" class="form-control" placeholder="Search URN or name"></div>
-        <button class="btn btn-primary" onclick="filterTable('attendanceTable','attendanceSearch',0)">Find Particular Student</button>
-        <button class="btn btn-outline-primary" onclick="showAll('attendanceTable')">Show All</button>
-        <button class="btn btn-outline-danger" onclick="filterAttendanceLow()">≤ 75% Attendance</button>
-      </div>
-      <div class="data-table">
-        <table class="table table-hover mb-0" id="attendanceTable">
-          <thead><tr><th>URN</th><th>Name</th><th>Batch</th><th>Semester</th><th>Total</th><th>Present</th><th>Absent</th><th>Percentage</th></tr></thead>
-          <tbody>
-          {% for r in attendance %}
-            <tr data-search="{{(r.urn|string + ' ' + (r.name or '')).lower()}}" data-percentage="{{r.percentage}}">
-              <td>{{r.urn}}</td><td>{{r.name}}</td><td>{{r.batch}}</td><td>{{r.semester}}</td><td>{{r.total_lectures}}</td><td>{{r.present}}</td><td>{{r.absent}}</td><td>{{r.percentage}}%</td>
-            </tr>
-          {% else %}<tr><td colspan="8" class="text-center">No attendance records yet.</td></tr>{% endfor %}
-          </tbody>
-        </table>
-      </div>
+   
+<!-- ATTENDANCE -->
+<div class="tab-pane fade" id="attendance-pane">
+  <div class="toolbar compact">
+    <div class="search-wrap">
+      <label for="attendanceStartMonth">Start Month</label>
+      <select id="attendanceStartMonth" class="form-select">
+        <option value="1">January</option>
+        <option value="2">February</option>
+        <option value="3">March</option>
+        <option value="4">April</option>
+        <option value="5">May</option>
+        <option value="6">June</option>
+        <option value="7">July</option>
+        <option value="8">August</option>
+        <option value="9">September</option>
+        <option value="10">October</option>
+        <option value="11">November</option>
+        <option value="12">December</option>
+      </select>
     </div>
+
+    <div class="search-wrap">
+      <label for="attendanceEndMonth">End Month</label>
+      <select id="attendanceEndMonth" class="form-select">
+        <option value="1">January</option>
+        <option value="2">February</option>
+        <option value="3">March</option>
+        <option value="4">April</option>
+        <option value="5">May</option>
+        <option value="6">June</option>
+        <option value="7">July</option>
+        <option value="8">August</option>
+        <option value="9">September</option>
+        <option value="10">October</option>
+        <option value="11">November</option>
+        <option value="12" selected>December</option>
+      </select>
+    </div>
+
+    <div class="search-wrap">
+      <label for="attendanceSearch">Find Particular Student</label>
+      <input id="attendanceSearch" class="form-control"
+             placeholder="Search URN or name">
+    </div>
+
+    <button type="button" class="btn btn-primary"
+            onclick="filterMonthlyAttendance()">
+      Apply Filters
+    </button>
+
+    <button type="button" class="btn btn-outline-secondary"
+            onclick="resetMonthlyAttendanceFilters()">
+      Show All
+    </button>
+
+    <button type="button" class="btn btn-outline-danger"
+            onclick="filterMonthlyAttendance(true)">
+      Below 75%
+    </button>
+  </div>
+
+  <div class="data-table">
+    <table class="table table-hover mb-0" id="attendanceTable">
+      <thead>
+        <tr>
+          <th>URN</th>
+          <th>Name</th>
+          <th>Batch</th>
+          <th>Semester</th>
+          <th>Month / Period</th>
+          <th>Submitted Attendance</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in monthly_attendance %}
+        <tr
+          data-search="{{ (r.urn|string + ' ' + (r.name or '')).lower() }}"
+          data-start-month="{{ r.start_month }}"
+          data-end-month="{{ r.end_month }}"
+          data-percentage="{{ r.monthly_percentage }}">
+          <td>{{ r.urn }}</td>
+          <td>{{ r.name }}</td>
+          <td>{{ r.batch }}</td>
+          <td>{{ r.semester }}</td>
+          <td>
+            {{ ['','January','February','March','April','May','June',
+                 'July','August','September','October','November','December'][r.start_month] }}
+            –
+            {{ ['','January','February','March','April','May','June',
+                 'July','August','September','October','November','December'][r.end_month] }}
+          </td>
+          <td>{{ "%.2f"|format(r.monthly_percentage) }}%</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="6" class="text-center">
+            No student-submitted monthly attendance records found.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
 
     <!-- MARKS -->
     <div class="tab-pane fade" id="marks-pane">
@@ -420,6 +504,72 @@ function filterAttendanceLow(){
     tr.style.display=(!isNaN(p) && p <= 75) ? "" : "none";
   });
 }
+
+function filterMonthlyAttendance(below75 = false) {
+  const startEl = document.getElementById("attendanceStartMonth");
+  const endEl = document.getElementById("attendanceEndMonth");
+  const searchEl = document.getElementById("attendanceSearch");
+
+  if (!startEl || !endEl || !searchEl) return;
+
+  const start = Number(startEl.value);
+  const end = Number(endEl.value);
+  const search = searchEl.value.trim().toLowerCase();
+
+  if (start > end) {
+    alert("Start month must be before or equal to end month.");
+    return;
+  }
+
+  document.querySelectorAll(
+    "#attendanceTable tbody tr[data-search]"
+  ).forEach(row => {
+    const rowStart = Number(row.dataset.startMonth);
+    const rowEnd = Number(row.dataset.endMonth);
+    const percentage = Number(row.dataset.percentage);
+
+    const overlaps = rowStart <= end && rowEnd >= start;
+    const matchesStudent = row.dataset.search.includes(search);
+    const matchesPercentage = !below75 || percentage < 75;
+
+    row.hidden = !(
+      overlaps && matchesStudent && matchesPercentage
+    );
+  });
+}
+
+function resetMonthlyAttendanceFilters() {
+  document.getElementById("attendanceStartMonth").value = "1";
+  document.getElementById("attendanceEndMonth").value = "12";
+  document.getElementById("attendanceSearch").value = "";
+
+  filterMonthlyAttendance(false);
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+  const search = document.getElementById("attendanceSearch");
+  const start = document.getElementById("attendanceStartMonth");
+  const end = document.getElementById("attendanceEndMonth");
+
+  if (search) {
+    search.addEventListener("input", function () {
+      filterMonthlyAttendance(false);
+    });
+  }
+
+  if (start) {
+    start.addEventListener("change", function () {
+      filterMonthlyAttendance(false);
+    });
+  }
+
+  if (end) {
+    end.addEventListener("change", function () {
+      filterMonthlyAttendance(false);
+    });
+  }
+});
+
 function filterBacklogs(){
   const counts={};
   document.querySelectorAll("#marksTable tbody tr").forEach(tr=>{
