@@ -1249,20 +1249,22 @@ def mentor_dashboard():
             for row in participation:
                 urn = str(row["urn"])
                 participation_by_urn.setdefault(urn, []).append(dict(row))
-                
+            
             mission_rows = con.execute(
-            f"""
-            SELECT urn, mission
-            FROM StudentMission
-            WHERE urn IN ({placeholders})
-            ORDER BY mission_id DESC
-            """,
-            student_urns,
-             ).fetchall()
+                f"""
+                SELECT urn, mission
+                FROM StudentMission
+                WHERE urn IN ({placeholders})
+                ORDER BY mission_id DESC
+                """,
+                student_urns,
+            ).fetchall()
 
             for row in mission_rows:
                 urn = str(row["urn"])
-                missions_by_urn.setdefault(urn, []).append(row["mission"])
+                missions_by_urn.setdefault(urn, []).append(
+                    row["mission"]
+                )
 
 
             monthly_rows = con.execute(
