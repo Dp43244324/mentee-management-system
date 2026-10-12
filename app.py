@@ -1168,35 +1168,86 @@ def mentor_register():
 def make_code(prefix):
     return prefix + "-" + secrets.token_hex(4).upper()
 
+
 @app.route("/mentor")
 @login_required("mentor")
 def mentor_dashboard():
     ma = mentor_scope()
     term_id, batch = ma["term_id"], ma["batch"]
+
     con = db()
-    students = con.execute(
-    """SELECT s.*,sa.class_name,sa.division,sa.roll_no,sa.batch
-       FROM Student s
-       JOIN StudentAcademicAssignment sa ON sa.student_id=s.student_id
-       WHERE sa.term_id=? AND sa.batch=? ORDER BY s.name""",
-    (term_id, batch),
-).fetchall()
-    con.close()
+    try:
+        students = con.execute(
+            """
+            SELECT s.*, sa.class_name, sa.division, sa.roll_no, sa.batch
+            FROM Student s
+            JOIN StudentAcademicAssignment sa
+              ON sa.student_id = s.student_id
+            WHERE sa.term_id = ? AND sa.batch = ?
+            ORDER BY s.name
+            """,
+            (term_id, batch),
+        ).fetchall()
+
+        student_list = [dict(x) for x in students]
+        student_urns = [str(s["urn"]) for s in student_list]
+
+        career_profiles = {}
+        participation_by_urn = {}
+
+        if student_urns:
+            placeholders = ",".join("?" for _ in student_urns)
+
+            profiles = con.execute(
+                f"""
+                SELECT urn, github_url, hackerrank_url, vision,
+                       short_term_goal, short_term_action_plan,
+                       long_term_goal, long_term_action_plan,
+                       resume_filename
+                FROM StudentCareerProfile
+                WHERE urn IN ({placeholders})
+                """,
+                student_urns,
+            ).fetchall()
+
+            career_profiles = {
+                str(row["urn"]): dict(row) for row in profiles
+            }
+
+            participation = con.execute(
+                f"""
+                SELECT urn, event_name, event_date, event_result
+                FROM StudentParticipation
+                WHERE urn IN ({placeholders})
+                ORDER BY event_date DESC
+                """,
+                student_urns,
+            ).fetchall()
+
+            for row in participation:
+                urn = str(row["urn"])
+                participation_by_urn.setdefault(urn, []).append(dict(row))
+
+    finally:
+        con.close()
+
     ad = attendance_df(term_id=term_id, batch=batch)
     mk = marks_with_status(term_id=term_id, batch=batch)
     low = ad[ad.percentage < LOW_ATTENDANCE] if not ad.empty else ad
     fail = mk[mk.status == "FAIL"] if not mk.empty else mk
+
     return render_template(
         "mentor_dashboard.html",
-        students=[dict(x) for x in students],
+        students=student_list,
+        career_profiles=career_profiles,
+        participation_by_urn=participation_by_urn,
         attendance=ad.to_dict("records"),
         marks=mk.to_dict("records"),
         low_count=len(low["urn"].unique()) if not low.empty else 0,
         backlog_count=len(fail["urn"].unique()) if not fail.empty else 0,
-        student_count=len(students),
+        student_count=len(student_list),
         assignment=ma,
     )
-
 
 @app.route("/mentor/student/<urn>/delete", methods=["POST"])
 @login_required("mentor")
