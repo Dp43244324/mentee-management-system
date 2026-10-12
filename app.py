@@ -1608,7 +1608,6 @@ def build_individual_excel(urn, ma):
                 sma.start_month,
                 sma.end_month,
                 sma.monthly_percentage,
-                sma.cumulative_percentage,
                 t.semester
             FROM StudentMonthlyAttendance sma
             JOIN AcademicTerm t
@@ -1645,7 +1644,6 @@ def build_individual_excel(urn, ma):
             "Semester": latest["semester"],
             "Latest Month / Period": period,
             "Monthly Attendance (%)": latest["monthly_percentage"],
-            "Cumulative Attendance (%)": latest["cumulative_percentage"]
         })
 
     attendance_df_latest = pd.DataFrame(attendance_records)
@@ -2024,24 +2022,20 @@ def individual_pdf(urn):
     return send_file(out, as_attachment=True, download_name=filename, mimetype="application/pdf")
 
 
+
 @app.route("/mentor/export/excel")
 @login_required("mentor")
 def export_excel():
-    """Batch Excel report with latest submitted attendance and simplified marks."""
+    """Batch Excel report with latest attendance and failed-subject backlogs."""
     ma = mentor_scope()
     term_id = ma["term_id"]
     batch = ma["batch"]
 
     out = io.BytesIO()
-
-    # -----------------------------
-    # Student Profile
-    # -----------------------------
     df = dataframe_for_report(term_id, batch)
+    mk = marks_with_status(term_id=term_id, batch=batch)
 
-    # -----------------------------
-    # Latest Submitted Attendance
-    # -----------------------------
+    # Get monthly attendance records for this mentor's batch.
     con = db()
     try:
         monthly_rows = con.execute("""
@@ -2051,7 +2045,6 @@ def export_excel():
                 sma.start_month,
                 sma.end_month,
                 sma.monthly_percentage,
-                sma.cumulative_percentage,
                 t.semester
             FROM StudentMonthlyAttendance sma
             JOIN Student s ON s.urn = sma.urn
@@ -2075,32 +2068,28 @@ def export_excel():
         "October", "November", "December"
     ]
 
-    # Keep one latest submitted period per student.
+    # Keep only the latest submitted period for each student.
     latest_by_urn = {}
-
     for row in monthly_rows:
         urn = str(row["urn"])
-
         if urn not in latest_by_urn:
-            latest_by_urn[urn] = row
+            latest_by_urn[urn] = dict(row)
 
     attendance_records = []
-
     for urn, row in latest_by_urn.items():
-        start_month = row["start_month"]
-        end_month = row["end_month"]
+        start = row["start_month"]
+        end = row["end_month"]
 
-        period = month_names[start_month]
-        if start_month != end_month:
-            period += " – " + month_names[end_month]
+        period = month_names[start]
+        if start != end:
+            period += " – " + month_names[end]
 
         attendance_records.append({
             "URN": urn,
             "Name": row["name"],
             "Semester": row["semester"],
             "Latest Month / Period": period,
-            "Monthly Attendance (%)": row["monthly_percentage"],
-            "Cumulative Attendance (%)": row["cumulative_percentage"]
+            "Monthly Attendance (%)": row["monthly_percentage"]
         })
 
     attendance_export = pd.DataFrame(
@@ -2110,66 +2099,59 @@ def export_excel():
             "Name",
             "Semester",
             "Latest Month / Period",
-            "Monthly Attendance (%)",
-            "Cumulative Attendance (%)"
+            "Monthly Attendance (%)"
         ]
     )
 
-    # -----------------------------
-    # Semester Marks
-    # -----------------------------
-    mk = marks_with_status(term_id=term_id, batch=batch)
-
-    marks_columns = [
-        "urn", "name", "batch", "semester",
-        "subject", "total", "status"
-    ]
-
+    # Build the backlog sheet using subjects whose status is Fail.
     if mk.empty:
-        marks_export = pd.DataFrame(columns=[
-            "URN", "Name", "Batch", "Semester",
-            "Subject", "Total", "Status"
+        backlog_export = pd.DataFrame(columns=[
+            "Name", "Backlogs", "Failed Subjects", "Status"
         ])
     else:
-        available_columns = [
-            col for col in marks_columns if col in mk.columns
-        ]
+        failed = mk[
+            mk["status"].astype(str).str.strip().str.lower() == "fail"
+        ].copy()
 
-        marks_export = mk[available_columns].copy()
+        backlog_records = []
 
-        marks_export = marks_export.rename(columns={
-            "urn": "URN",
-            "name": "Name",
-            "batch": "Batch",
-            "semester": "Semester",
-            "subject": "Subject",
-            "total": "Total",
-            "status": "Status"
-        })
+        if not failed.empty:
+            for urn, student_rows in failed.groupby("urn", sort=False):
+                name = student_rows.iloc[0]["name"]
+                subjects = sorted(
+                    set(student_rows["subject"].dropna().astype(str))
+                )
+                count = len(subjects)
 
-    # -----------------------------
-    # Write Excel Workbook
-    # -----------------------------
+                if count > 3:
+                    backlog_status = "More Than 3 Backlogs"
+                elif count == 1:
+                    backlog_status = "1 Backlog"
+                else:
+                    backlog_status = f"{count} Backlogs"
+
+                backlog_records.append({
+                    "Name": name,
+                    "Backlogs": count,
+                    "Failed Subjects": ", ".join(subjects),
+                    "Status": backlog_status
+                })
+
+        backlog_export = pd.DataFrame(
+            backlog_records,
+            columns=["Name", "Backlogs", "Failed Subjects", "Status"]
+        )
+
+    # Export three sheets: Students, Attendance, Students with Backlogs.
     with pd.ExcelWriter(out, engine="openpyxl") as writer:
-        df.to_excel(
-            writer,
-            index=False,
-            sheet_name="Students"
-        )
-
+        df.to_excel(writer, index=False, sheet_name="Students")
         attendance_export.to_excel(
-            writer,
-            index=False,
-            sheet_name="Attendance"
+            writer, index=False, sheet_name="Attendance"
+        )
+        backlog_export.to_excel(
+            writer, index=False, sheet_name="Students with Backlogs"
         )
 
-        marks_export.to_excel(
-            writer,
-            index=False,
-            sheet_name="Semester Marks"
-        )
-
-        # Format every sheet for readability.
         for worksheet in writer.sheets.values():
             worksheet.freeze_panes = "A2"
             worksheet.auto_filter.ref = worksheet.dimensions
@@ -2179,19 +2161,16 @@ def export_excel():
                     len(str(cell.value or ""))
                     for cell in column_cells
                 )
-
                 column_letter = column_cells[0].column_letter
                 worksheet.column_dimensions[column_letter].width = min(
-                    max_length + 3, 35
+                    max_length + 3, 45
                 )
 
     filename = (
         f"Batch_Report_"
         f"{re.sub(r'[^A-Za-z0-9_.-]', '_', str(batch))}.xlsx"
     )
-
     save_report_file(filename, out.getvalue())
-
     out.seek(0)
 
     return send_file(
@@ -2203,6 +2182,7 @@ def export_excel():
             "spreadsheetml.sheet"
         )
     )
+
 
 
 
@@ -2392,66 +2372,48 @@ def export_pdf():
         story.append(Spacer(1, 16))
         story.append(Image(graph_buffer, width=700, height=280))
 
-    # Semester marks: only total and status
-    story.append(PageBreak())
-    story.append(Paragraph("Semester Marks", styles["Heading2"]))
-    story.append(Spacer(1, 8))
 
-    if mk.empty:
-        story.append(Paragraph(
-            "No semester marks available.",
-            styles["Normal"]
-        ))
-    else:
-        marks_data = [
-            ["URN", "Name", "Batch", "Semester", "Subject", "Total", "Status"]
-        ]
-
-        for r in mk.itertuples():
-            marks_data.append([
-                r.urn,
-                r.name,
-                r.batch,
-                r.semester,
-                r.subject,
-                r.total,
-                r.status
-            ])
-
-        marks_table = Table(
-            marks_data,
-            repeatRows=1
-        )
-        marks_table.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f4e78")),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-            ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
-            ("FONTSIZE", (0, 0), (-1, -1), 8),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ]))
-        story.append(marks_table)
-
-    # Students with backlogs
+    # Students with Backlogs - next page after attendance graph
     story.append(PageBreak())
     story.append(Paragraph("Students with Backlogs", styles["Heading2"]))
     story.append(Spacer(1, 8))
 
-    backlogs = backlog_summary(mk)
+    # Backlog means the subject result status is Fail
+    failed = mk[
+        mk["status"].astype(str).str.strip().str.lower() == "fail"
+    ].copy()
 
-    if backlogs.empty:
+    if failed.empty:
         story.append(Paragraph(
             "No students have backlogs.",
             styles["Normal"]
         ))
     else:
-        backlog_data = [["Name", "Backlogs", "Failed Subjects", "Status"]]
+        backlog_data = [
+            ["Name", "Backlogs", "Failed Subjects", "Status"]
+        ]
 
-        for r in backlogs.itertuples():
+        for urn, student_rows in failed.groupby("urn", sort=False):
+            name = student_rows.iloc[0]["name"]
+
+            # Count distinct subjects with Fail status
+            subjects = sorted(
+                set(student_rows["subject"].dropna().astype(str))
+            )
+            count = len(subjects)
+
+            if count > 3:
+                backlog_status = "More Than 3 Backlogs"
+            elif count == 1:
+                backlog_status = "1 Backlog"
+            else:
+                backlog_status = f"{count} Backlogs"
+
             backlog_data.append([
-                r.name,
-                r.backlog_count,
-                Paragraph(str(r.failed_subjects), styles["Normal"]),
-                r.backlog_status
+                name,
+                count,
+                Paragraph(", ".join(subjects), styles["Normal"]),
+                backlog_status
             ])
 
         backlog_table = Table(
@@ -2459,6 +2421,7 @@ def export_pdf():
             colWidths=[170, 80, 330, 140],
             repeatRows=1
         )
+
         backlog_table.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f4e78")),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
@@ -2466,7 +2429,9 @@ def export_pdf():
             ("FONTSIZE", (0, 0), (-1, -1), 9),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ]))
+
         story.append(backlog_table)
+
 
     doc.build(story)
 
