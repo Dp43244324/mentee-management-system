@@ -1242,8 +1242,8 @@ def mentor_dashboard():
              ).fetchall()
 
             for row in mission_rows:
-            urn = str(row["urn"])
-            missions_by_urn.setdefault(urn, []).append(row["mission"])
+                urn = str(row["urn"])
+                missions_by_urn.setdefault(urn, []).append(row["mission"])
 
 
             monthly_rows = con.execute(
