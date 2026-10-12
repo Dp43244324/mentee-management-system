@@ -329,7 +329,7 @@ function selectStudent(urn) {
       history.forEach(event => {
         const tr = document.createElement("tr");
 
-        [event.event_name, event.event_date, event.event_result]
+        [event.event_name, event.event_date ? String(event.event_date).replace(/T00:00:00(\.000)?Z$/, "").replace(/ 00:00:00 GMT$/, "") : event.event_date, event.event_result]
           .forEach(value => {
             const td = document.createElement("td");
             td.textContent = value || "—";
