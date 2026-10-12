@@ -224,18 +224,160 @@ let selectedUrn = null;
 
 function val(v){ return v === null || v === undefined ? "" : v; }
 
-function selectStudent(urn){
+
+function selectStudent(urn) {
   selectedUrn = String(urn);
+
   const s = students.find(x => String(x.urn) === selectedUrn);
-  if(!s) return;
+  if (!s) return;
+
+  // Keep the existing basic details unchanged
   const map = {
-    urn:s.urn,name:s.name,batch:s.batch,class:s.class_name,division:s.division,roll:s.roll_no,
-    address:s.address,mobile:s.mobile,parent_name:s.parent_name,parent_mobile:s.parent_mobile,
-    hobbies:s.hobbies,ssc_medium:s.ssc_medium,hsc_medium:s.hsc_medium,ssc_marks:s.ssc_marks,
-    hsc_marks:s.hsc_marks,awards:s.awards,certifications:s.certifications
+    urn: s.urn,
+    name: s.name,
+    batch: s.batch,
+    class: s.class_name,
+    division: s.division,
+    roll: s.roll_no,
+    address: s.address,
+    mobile: s.mobile,
+    parent_name: s.parent_name,
+    parent_mobile: s.parent_mobile,
+    hobbies: s.hobbies,
+    ssc_medium: s.ssc_medium,
+    hsc_medium: s.hsc_medium,
+    ssc_marks: s.ssc_marks,
+    hsc_marks: s.hsc_marks,
+    awards: s.awards,
+    certifications: s.certifications
   };
-  Object.keys(map).forEach(k => document.getElementById("p_"+k).value = val(map[k]));
-  document.querySelectorAll("#studentTable tbody tr").forEach(tr => tr.classList.toggle("table-primary", tr.dataset.urn === selectedUrn));
+
+  Object.keys(map).forEach(k => {
+    const field = document.getElementById("p_" + k);
+    if (field) field.value = val(map[k]);
+  });
+
+  // Get this student's career profile
+  const profile = career_profiles[selectedUrn] || {};
+
+  // Safely display text
+  function setText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value || "—";
+  }
+
+  // Display external profile links safely
+  function setLink(id, url, label) {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    el.replaceChildren();
+
+    if (!url) {
+      el.textContent = "Not provided";
+      return;
+    }
+
+    try {
+      const parsed = new URL(url, window.location.origin);
+      if (!["https:", "http:"].includes(parsed.protocol)) {
+        el.textContent = "Invalid link";
+        return;
+      }
+
+      const link = document.createElement("a");
+      link.href = parsed.href;
+      link.textContent = label;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      el.appendChild(link);
+    } catch {
+      el.textContent = "Invalid link";
+    }
+  }
+
+  // Participation history
+  const history = participation_by_urn[selectedUrn] || [];
+  const participationEl = document.getElementById("p_participation");
+
+  if (participationEl) {
+    participationEl.replaceChildren();
+
+    if (history.length === 0) {
+      participationEl.textContent = "No participation records.";
+    } else {
+      const table = document.createElement("table");
+      table.className = "table table-sm table-bordered";
+
+      const thead = document.createElement("thead");
+      const header = document.createElement("tr");
+
+      ["Event", "Date", "Result"].forEach(title => {
+        const th = document.createElement("th");
+        th.textContent = title;
+        header.appendChild(th);
+      });
+
+      thead.appendChild(header);
+      table.appendChild(thead);
+
+      const tbody = document.createElement("tbody");
+
+      history.forEach(event => {
+        const tr = document.createElement("tr");
+
+        [event.event_name, event.event_date, event.event_result]
+          .forEach(value => {
+            const td = document.createElement("td");
+            td.textContent = value || "—";
+            tr.appendChild(td);
+          });
+
+        tbody.appendChild(tr);
+      });
+
+      table.appendChild(tbody);
+      participationEl.appendChild(table);
+    }
+  }
+
+  // Career profile
+  setLink("p_github", profile.github_url, "Open GitHub");
+  setLink("p_hackerrank", profile.hackerrank_url, "Open HackerRank");
+  setText("p_vision", profile.vision);
+  setText("p_short_goal", profile.short_term_goal);
+  setText("p_short_plan", profile.short_term_action_plan);
+  setText("p_long_goal", profile.long_term_goal);
+  setText("p_long_plan", profile.long_term_action_plan);
+
+  // Mission is not in the confirmed career-profile schema yet
+  setText("p_mission", "");
+
+  // Resume download link
+  const resumeEl = document.getElementById("p_resume");
+  if (resumeEl) {
+    resumeEl.replaceChildren();
+
+    if (profile.resume_filename) {
+      const link = document.createElement("a");
+      link.href = "/mentor/student/" +
+        encodeURIComponent(selectedUrn) + "/resume";
+      link.textContent = "View / Download Resume";
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      resumeEl.appendChild(link);
+    } else {
+      resumeEl.textContent = "No resume uploaded.";
+    }
+  }
+
+  // Highlight the selected student in the table
+  document.querySelectorAll("#studentTable tbody tr").forEach(tr => {
+    tr.classList.toggle(
+      "table-primary",
+      tr.dataset.urn === selectedUrn
+    );
+  });
 }
 
 function clearProfile(){
