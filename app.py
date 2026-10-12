@@ -345,48 +345,48 @@ def attendance_df(urn=None, term_id=None, batch=None):
 def marks_df(urn=None, term_id=None, batch=None):
     con = db()
 
+    q = """
+        SELECT
+            m.urn,
+            s.name,
+            sa.batch,
+            sa.division,
+            t.academic_year,
+            t.semester,
+            m.subject,
+            m.total,
+            m.status
+        FROM SemesterMarks m
+        JOIN Student s ON s.urn = m.urn
+        JOIN AcademicTerm t ON t.term_id = m.term_id
+        LEFT JOIN StudentAcademicAssignment sa
+            ON sa.student_id = s.student_id
+            AND sa.term_id = m.term_id
+    """
+
+    p = []
+    w = []
+
+    if urn:
+        w.append("m.urn = ?")
+        p.append(urn)
+
+    if term_id:
+        w.append("m.term_id = ?")
+        p.append(term_id)
+
+    if batch and batch != "ALL":
+        w.append("sa.batch = ?")
+        p.append(batch)
+
+    if w:
+        q += " WHERE " + " AND ".join(w)
+
+    q += " ORDER BY s.name, t.semester, m.subject"
+
     try:
-        q = """
-            SELECT
-                m.urn,
-                s.name,
-                sa.batch,
-                sa.division,
-                t.academic_year,
-                t.semester,
-                m.subject,
-                m.total,
-                m.status
-            FROM SemesterMarks m
-            JOIN Student s ON s.urn = m.urn
-            JOIN AcademicTerm t ON t.term_id = m.term_id
-            LEFT JOIN StudentAcademicAssignment sa
-                ON sa.student_id = s.student_id
-                AND sa.term_id = m.term_id
-        """
-
-        p = []
-        w = []
-
-        if urn:
-            w.append("m.urn = ?")
-            p.append(urn)
-
-        if term_id:
-            w.append("m.term_id = ?")
-            p.append(term_id)
-
-        if batch and batch != "ALL":
-            w.append("sa.batch = ?")
-            p.append(batch)
-
-        if w:
-            q += " WHERE " + " AND ".join(w)
-
-        q += " ORDER BY s.name, t.semester, m.subject"
-
-        return query_df(q, p)
-
+        df = query_df(q, p)
+        return df
     finally:
         con.close()
 
@@ -394,14 +394,9 @@ def marks_with_status(urn=None, term_id=None, batch=None):
     df = marks_df(urn, term_id, batch)
 
     if df.empty:
-        df["status"] = pd.Series(dtype=str)
-        df["reason"] = pd.Series(dtype=str)
         return df
 
-    # Use the Pass/Fail result selected by the student.
-    if "status" not in df.columns:
-        df["status"] = "Fail"
-
+    df["status"] = df["status"].fillna("Fail")
     df["reason"] = ""
 
     return df
