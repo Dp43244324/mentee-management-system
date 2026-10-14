@@ -17,6 +17,11 @@ from reportlab.lib.styles import getSampleStyleSheet
 from werkzeug.utils import secure_filename
 from flask import send_from_directory
 import uuid
+import cloudinary
+import cloudinary.uploader
+import cloudinary.utils
+import requests
+from io import BytesIO
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
