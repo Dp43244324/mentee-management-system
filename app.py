@@ -921,6 +921,8 @@ def upload_student_resume():
     extension = original_name.rsplit(".", 1)[1].lower()
     stored_name = f"{uuid.uuid4().hex}.{extension}"
     file_path = os.path.join(RESUME_UPLOAD_FOLDER, stored_name)
+    os.makedirs(RESUME_UPLOAD_FOLDER, exist_ok=True)
+
 
     con = db()
     try:
