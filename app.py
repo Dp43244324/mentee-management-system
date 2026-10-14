@@ -1470,7 +1470,14 @@ def download_student_resume(urn):
     stored_name = os.path.basename(profile["resume_path"])
     file_path = os.path.join(RESUME_UPLOAD_FOLDER, stored_name)
 
+    
     if not os.path.isfile(file_path):
+        app.logger.error(
+            "Resume missing: urn=%s, path=%s, folder_exists=%s",
+            urn,
+            file_path,
+            os.path.isdir(RESUME_UPLOAD_FOLDER)
+        )
         flash("Resume file is not currently available.", "danger")
         return redirect(url_for("mentor_student", urn=urn))
 
