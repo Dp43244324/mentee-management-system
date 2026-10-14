@@ -896,6 +896,7 @@ def add_student_mission():
     return redirect(url_for("student_dashboard"))
 
 
+
 @app.route("/student/resume", methods=["POST"])
 @login_required("student")
 def upload_student_resume():
@@ -919,42 +920,46 @@ def upload_student_resume():
         return redirect(url_for("student_dashboard"))
 
     original_name = secure_filename(uploaded_file.filename)
-    if not original_name:
+    if not original_name or "." not in original_name:
         flash("Invalid filename.", "danger")
         return redirect(url_for("student_dashboard"))
 
     extension = original_name.rsplit(".", 1)[1].lower()
-    stored_name = f"{uuid.uuid4().hex}.{extension}"
-    file_path = os.path.join(RESUME_UPLOAD_FOLDER, stored_name)
-    os.makedirs(RESUME_UPLOAD_FOLDER, exist_ok=True)
-
+    public_id = f"resumes/{uuid.uuid4().hex}.{extension}"
 
     con = db()
     try:
-        uploaded_file.save(file_path)
+        result = cloudinary.uploader.upload(
+            uploaded_file,
+            resource_type="raw",
+            public_id=public_id,
+            type="authenticated",
+            overwrite=False
+        )
 
         con.execute("""
-            INSERT INTO StudentCareerProfile (urn, resume_filename, resume_path)
+            INSERT INTO StudentCareerProfile
+                (urn, resume_filename, resume_path)
             VALUES (?, ?, ?)
             ON CONFLICT(urn) DO UPDATE SET
                 resume_filename=excluded.resume_filename,
                 resume_path=excluded.resume_path,
                 updated_at=CURRENT_TIMESTAMP
-        """, (urn, original_name, stored_name))
+        """, (urn, original_name, result["public_id"]))
 
         con.commit()
         flash("Resume uploaded successfully.", "success")
 
     except Exception:
         con.rollback()
-        if os.path.exists(file_path):
-            os.remove(file_path)
+        app.logger.exception("Resume upload failed for URN %s", urn)
         flash("Could not save your resume. Please try again.", "danger")
 
     finally:
         con.close()
 
     return redirect(url_for("student_dashboard"))
+
 
     
 @app.route("/student/academic-assignment",methods=["POST"])
@@ -1452,6 +1457,7 @@ def mentor_student(urn):
         monthly_attendance=monthly_attendance
     )
 
+
 @app.route("/mentor/student/<urn>/resume")
 @login_required("mentor")
 def download_student_resume(urn):
@@ -1472,26 +1478,35 @@ def download_student_resume(urn):
         flash("No resume has been uploaded for this student.", "warning")
         return redirect(url_for("mentor_student", urn=urn))
 
-    stored_name = os.path.basename(profile["resume_path"])
-    file_path = os.path.join(RESUME_UPLOAD_FOLDER, stored_name)
+    public_id = profile["resume_path"]
+    original_name = profile["resume_filename"] or "resume"
 
-    
-    if not os.path.isfile(file_path):
-        app.logger.error(
-            "Resume missing: urn=%s, path=%s, folder_exists=%s",
-            urn,
-            file_path,
-            os.path.isdir(RESUME_UPLOAD_FOLDER)
+    try:
+        extension = os.path.splitext(original_name)[1].lstrip(".").lower()
+
+        download_url = cloudinary.utils.private_download_url(
+            public_id,
+            extension,
+            resource_type="raw",
+            type="authenticated",
+            expires_at=int(datetime.now().timestamp()) + 300
         )
-        flash("Resume file is not currently available.", "danger")
+
+        response = requests.get(download_url, timeout=30)
+        response.raise_for_status()
+
+        return send_file(
+            io.BytesIO(response.content),
+            as_attachment=True,
+            download_name=secure_filename(original_name),
+            mimetype="application/octet-stream"
+        )
+
+    except Exception:
+        app.logger.exception("Resume download failed for URN %s", urn)
+        flash("Could not retrieve the resume. Please try again.", "danger")
         return redirect(url_for("mentor_student", urn=urn))
 
-    return send_from_directory(
-        RESUME_UPLOAD_FOLDER,
-        stored_name,
-        as_attachment=True,
-        download_name=secure_filename(profile["resume_filename"] or stored_name)
-    )
 
 @app.route("/mentor/suggestion",methods=["POST"])
 @login_required("mentor")
