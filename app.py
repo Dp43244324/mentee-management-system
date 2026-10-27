@@ -1314,7 +1314,9 @@ def mentor_dashboard():
 
     # Retrieve semester marks across all terms for this batch.
     mk = marks_with_status(batch=batch)
-    print("MENTOR DASHBOARD MARKS:", mk.to_dict("records"))
+    print("MENTOR BATCH:", repr(batch))
+    print("MENTOR MARKS COUNT:", len(mk))
+    print("MENTOR MARKS DATA:", mk.to_dict("records"))
     # Latest attendance period for each student in this term.
     latest_by_urn = {}
 
