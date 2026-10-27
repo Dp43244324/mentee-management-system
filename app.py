@@ -1314,7 +1314,7 @@ def mentor_dashboard():
 
     # Retrieve semester marks across all terms for this batch.
    # Diagnostic: retrieve marks without filtering by batch.
-    mk = marks_with_status(batch=batch)
+    mk = marks_with_status()
 
     print("MENTOR BATCH:", repr(batch))
     print("MENTOR MARKS COUNT:", len(mk))
