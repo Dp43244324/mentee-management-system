@@ -1071,6 +1071,7 @@ def student_attendance():
 
     return redirect(url_for("student_dashboard"))
 
+
 @app.route("/student/marks", methods=["POST"])
 @login_required("student")
 def student_marks():
@@ -1095,23 +1096,22 @@ def student_marks():
         if status not in ("Pass", "Fail"):
             raise ValueError("Please select Pass or Fail.")
 
-        if not student_has_semester(urn, sem):
-            raise ValueError("You are not assigned to that semester.")
-
         con = db()
 
+        # Find the existing academic term for the selected semester.
         term = con.execute("""
-            SELECT t.term_id
-            FROM StudentAcademicAssignment sa
-            JOIN Student s ON s.student_id = sa.student_id
-            JOIN AcademicTerm t ON t.term_id = sa.term_id
-            WHERE s.urn = ? AND t.semester = ?
-            ORDER BY t.term_id DESC
+            SELECT term_id
+            FROM AcademicTerm
+            WHERE semester = ?
+              AND academic_year = '2026-27'
+            ORDER BY term_id DESC
             LIMIT 1
-        """, (urn, sem)).fetchone()
+        """, (sem,)).fetchone()
 
         if not term:
-            raise ValueError("You are not assigned to that semester.")
+            raise ValueError(
+                "No academic term exists for that semester."
+            )
 
         con.execute("""
             INSERT INTO SemesterMarks
@@ -1134,9 +1134,12 @@ def student_marks():
     except Exception:
         if con:
             con.rollback()
+        app.logger.exception("Student marks save failed")
+        if con:
+            con.rollback()
         flash(
-            "Could not save marks. Check the SemesterMarks table "
-            "and marks-reading queries.",
+            "Could not save marks. Please check the marks table "
+            "and try again.",
             "danger"
         )
 
@@ -1145,6 +1148,7 @@ def student_marks():
             con.close()
 
     return redirect(url_for("student_dashboard"))
+
 
 @app.route("/student/achievement",methods=["POST"])
 @login_required("student")
