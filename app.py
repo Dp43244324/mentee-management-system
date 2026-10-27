@@ -1212,7 +1212,7 @@ def mentor_dashboard():
     term_id, batch = ma["term_id"], ma["batch"]
 
     con = db()
-    try:
+   try:
         students = con.execute(
             """
             SELECT s.*, sa.class_name, sa.division, sa.roll_no, sa.batch
@@ -1303,12 +1303,11 @@ def mentor_dashboard():
             ).fetchall()
 
             monthly_attendance = [dict(row) for row in monthly_rows]
-
-        finally:
+   finally:
         con.close()
 
-        ad = attendance_df(term_id=term_id, batch=batch)
-        mk = marks_with_status(batch=batch)
+   ad = attendance_df(term_id=term_id, batch=batch)
+   mk = marks_with_status(batch=batch)
     # Latest attendance period for each student in this term.
     latest_by_urn = {}
     for row in monthly_attendance:
