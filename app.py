@@ -1417,6 +1417,7 @@ def mentor_student(urn):
 
     ad = attendance_df(urn, term_id=ma["term_id"])
     mk = marks_with_status(urn)
+    print("MENTOR MARKS DEBUG:", urn, mk.to_dict("records"))
 
     con = db()
     try:
