@@ -273,7 +273,6 @@
                 <tr>
                     <th>URN</th>
                     <th>Name</th>
-                    <th>Batch</th>
                     <th>Semester</th>
                     <th>Subject</th>
                     <th>Total</th>
@@ -288,7 +287,6 @@
                     data-status="{{ r.status }}">
                     <td>{{ r.urn }}</td>
                     <td>{{ r.name }}</td>
-                    <td>{{ r.batch }}</td>
                     <td>{{ r.semester }}</td>
                     <td>{{ r.subject }}</td>
                     <td>{{ r.total }}</td>
@@ -296,7 +294,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="7" class="text-center">
+                    <td colspan="6" class="text-center">
                         No semester marks yet.
                     </td>
                 </tr>
