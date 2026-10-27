@@ -1313,10 +1313,12 @@ def mentor_dashboard():
     ad = attendance_df(term_id=term_id, batch=batch)
 
     # Retrieve semester marks across all terms for this batch.
-    mk = marks_with_status(batch=batch)
-    print("MENTOR BATCH:", repr(batch))
-    print("MENTOR MARKS COUNT:", len(mk))
-    print("MENTOR MARKS DATA:", mk.to_dict("records"))
+   # Diagnostic: retrieve marks without filtering by batch.
+mk = marks_with_status()
+
+print("MENTOR BATCH:", repr(batch))
+print("MENTOR MARKS COUNT:", len(mk))
+print("MENTOR MARKS DATA:", mk.to_dict("records"))
     # Latest attendance period for each student in this term.
     latest_by_urn = {}
 
