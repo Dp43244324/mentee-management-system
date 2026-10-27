@@ -1203,8 +1203,6 @@ def mentor_register():
 def make_code(prefix):
     return prefix + "-" + secrets.token_hex(4).upper()
 
-
-
 @app.route("/mentor")
 @login_required("mentor")
 def mentor_dashboard():
@@ -1249,7 +1247,8 @@ def mentor_dashboard():
             ).fetchall()
 
             career_profiles = {
-                str(row["urn"]): dict(row) for row in profiles
+                str(row["urn"]): dict(row)
+                for row in profiles
             }
 
             participation = con.execute(
@@ -1264,8 +1263,10 @@ def mentor_dashboard():
 
             for row in participation:
                 urn = str(row["urn"])
-                participation_by_urn.setdefault(urn, []).append(dict(row))
-            
+                participation_by_urn.setdefault(
+                    urn, []
+                ).append(dict(row))
+
             mission_rows = con.execute(
                 f"""
                 SELECT urn, mission
@@ -1278,10 +1279,9 @@ def mentor_dashboard():
 
             for row in mission_rows:
                 urn = str(row["urn"])
-                missions_by_urn.setdefault(urn, []).append(
-                    row["mission"]
-                )
-
+                missions_by_urn.setdefault(
+                    urn, []
+                ).append(row["mission"])
 
             monthly_rows = con.execute(
                 f"""
@@ -1302,30 +1302,40 @@ def mentor_dashboard():
                 student_urns + [batch],
             ).fetchall()
 
-                       monthly_attendance = [dict(row) for row in monthly_rows]
+            monthly_attendance = [
+                dict(row) for row in monthly_rows
+            ]
 
     finally:
         con.close()
 
+    # Keep attendance limited to the mentor's assigned term and batch.
     ad = attendance_df(term_id=term_id, batch=batch)
+
+    # Retrieve semester marks across all terms for this batch.
     mk = marks_with_status(batch=batch)
 
     # Latest attendance period for each student in this term.
-    # Latest attendance period for each student in this term.
     latest_by_urn = {}
+
     for row in monthly_attendance:
         urn = str(row["urn"])
         key = (
             int(row["end_month"]),
-            int(row["start_month"])
+            int(row["start_month"]),
         )
-        if urn not in latest_by_urn or key > latest_by_urn[urn]["key"]:
+
+        if (
+            urn not in latest_by_urn
+            or key > latest_by_urn[urn]["key"]
+        ):
             latest_by_urn[urn] = {
                 "key": key,
-                "row": row
+                "row": row,
             }
 
     low_attendance_students = []
+
     for item in latest_by_urn.values():
         row = item["row"]
         percentage = float(row["monthly_percentage"] or 0)
@@ -1337,28 +1347,35 @@ def mentor_dashboard():
                 "semester": row["semester"],
                 "start_month": row["start_month"],
                 "end_month": row["end_month"],
-                "monthly_percentage": percentage
+                "monthly_percentage": percentage,
             })
 
     # Students with at least one failed subject.
     fail = (
-        mk[mk["status"].astype(str).str.strip().str.upper() == "FAIL"].copy()
-        if not mk.empty else mk
+        mk[
+            mk["status"].astype(str).str.strip().str.upper()
+            == "FAIL"
+        ].copy()
+        if not mk.empty
+        else mk
     )
 
     failed_subjects_by_student = []
+
     if not fail.empty:
         for (urn, name, semester), group in fail.groupby(
-            ["urn", "name", "semester"], dropna=False
+            ["urn", "name", "semester"],
+            dropna=False,
         ):
             subjects = sorted(
                 set(group["subject"].dropna().astype(str))
             )
+
             failed_subjects_by_student.append({
                 "urn": urn,
                 "name": name,
                 "semester": semester,
-                "subjects": ", ".join(subjects)
+                "subjects": ", ".join(subjects),
             })
 
     return render_template(
@@ -1371,13 +1388,17 @@ def mentor_dashboard():
         attendance=ad.to_dict("records"),
         marks=mk.to_dict("records"),
         low_count=len(low_attendance_students),
-        backlog_count=len(fail["urn"].astype(str).unique()) if not fail.empty else 0,
+        backlog_count=(
+            len(fail["urn"].astype(str).unique())
+            if not fail.empty
+            else 0
+        ),
         low_attendance_students=low_attendance_students,
         failed_subjects_by_student=failed_subjects_by_student,
         student_count=len(student_list),
         assignment=ma,
     )
-
+    
 @app.route("/mentor/student/<urn>/delete", methods=["POST"])
 @login_required("mentor")
 def mentor_delete_student(urn):
